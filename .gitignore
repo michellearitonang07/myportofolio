@@ -1,0 +1,17 @@
+# Python / Virtual Environment
+env/
+venv/
+ENV/
+*.pyc
+__pycache__/
+
+# Database & Local Settings
+*.sqlite3
+db.sqlite3
+.env
+
+# Static collected
+staticfiles/
+
+# macOS / OS Files
+.DS_Store
