@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Michelle Yuyun Margarethy Aritonang | Portfolio</title>
+    <title>{{ name }} | Portfolio</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,15 +23,15 @@
     <header class="site-header">
         <div class="container nav-container">
 
-            <a href="#profile" class="brand">
+            <a href="{% url 'main:show_main' %}" class="brand">
                 Michelle<span>.</span>
             </a>
 
             <nav class="nav-links">
-                <a href="#profile">Home</a>
+                <a href="{% url 'main:show_main' %}">Home</a>
                 <a href="#about">About</a>
                 <a href="#education">Education</a>
-                <a href="#experience">Experience</a>
+                <a href="{% url 'main:show_experience' %}">Experience</a>
                 <a href="#skills">Skills</a>
             </nav>
 
@@ -51,7 +51,7 @@
                 <div class="hero-content">
 
                     <p class="eyebrow">
-                        Information Systems · Universitas Indonesia
+                        {{ study_program }} · Universitas Indonesia
                     </p>
 
                     <p class="hero-intro">
@@ -59,8 +59,7 @@
                     </p>
 
                     <h1>
-                        Michelle Yuyun
-                        <span>Margarethy Aritonang</span>
+                        {{ name }}
                     </h1>
 
                     <p class="hero-role">
@@ -68,18 +67,19 @@
                     </p>
 
                     <p class="bio" id="about">
-                        An Information Systems student at Universitas Indonesia with
-                        an interest in technology, business, and project management.
-                        I enjoy learning how technology can be applied to solve
-                        problems, support collaboration, and create meaningful
-                        digital solutions.
+                        {{ bio }}
                     </p>
 
                     <div class="meta-grid">
 
                         <div class="meta-item">
+                            <span class="meta-label">NPM</span>
+                            <span class="meta-value">{{ npm }}</span>
+                        </div>
+
+                        <div class="meta-item">
                             <span class="meta-label">Major</span>
-                            <span class="meta-value">Information Systems</span>
+                            <span class="meta-value">{{ study_program }}</span>
                         </div>
 
                         <div class="meta-item">
@@ -90,11 +90,6 @@
                         <div class="meta-item">
                             <span class="meta-label">University</span>
                             <span class="meta-value">Universitas Indonesia</span>
-                        </div>
-
-                        <div class="meta-item">
-                            <span class="meta-label">Batch</span>
-                            <span class="meta-value">2025</span>
                         </div>
 
                     </div>
@@ -255,168 +250,6 @@
 
 
         <!-- =========================
-             EXPERIENCE
-        ========================== -->
-        <section class="content-section experience-section" id="experience">
-
-            <div class="container">
-
-                <div class="section-title">
-                    <span class="section-number">02</span>
-
-                    <div>
-                        <p class="section-kicker">Campus Involvement</p>
-                        <h2>Experience</h2>
-                    </div>
-                </div>
-
-                <p class="section-description">
-                    Organizational and committee experiences throughout my
-                    university journey.
-                </p>
-
-
-                <div class="experience-grid">
-
-                    <!-- LO -->
-                    <article class="experience-card">
-
-                        <div class="experience-top">
-                            <span class="experience-type">
-                                UNIVERSITY EVENT
-                            </span>
-
-                            <span class="experience-year">
-                                2026
-                            </span>
-                        </div>
-
-                        <h3>
-                            Liaison Officer
-                        </h3>
-
-                        <p class="organization">
-                            Open House Fasilkom UI
-                        </p>
-
-                        <p class="experience-description">
-                            Supporting communication and coordination between
-                            participants, guests, and the event team.
-                        </p>
-
-                        <div class="experience-tag">
-                            Communication
-                        </div>
-
-                    </article>
-
-
-                    <!-- Compfest -->
-                    <article class="experience-card">
-
-                        <div class="experience-top">
-                            <span class="experience-type">
-                                COMMITTEE
-                            </span>
-
-                            <span class="experience-year">
-                                2026
-                            </span>
-                        </div>
-
-                        <h3>
-                            Human Resources
-                        </h3>
-
-                        <p class="organization">
-                            Compfest
-                        </p>
-
-                        <p class="experience-description">
-                            Contributing to team coordination and human
-                            resources activities within the committee.
-                        </p>
-
-                        <div class="experience-tag">
-                            Human Resources
-                        </div>
-
-                    </article>
-
-
-                    <!-- Rumah Belajar -->
-                    <article class="experience-card">
-
-                        <div class="experience-top">
-                            <span class="experience-type">
-                                ACADEMIC EVENT
-                            </span>
-
-                            <span class="experience-year">
-                                2026
-                            </span>
-                        </div>
-
-                        <h3>
-                            Academic Event
-                        </h3>
-
-                        <p class="organization">
-                            Rumah Belajar BEM UI
-                        </p>
-
-                        <p class="experience-description">
-                            Participating in the organization of an academic
-                            event and supporting its activities.
-                        </p>
-
-                        <div class="experience-tag">
-                            Event Management
-                        </div>
-
-                    </article>
-
-
-                    <!-- SBF -->
-                    <article class="experience-card">
-
-                        <div class="experience-top">
-                            <span class="experience-type">
-                                COMMITTEE
-                            </span>
-
-                            <span class="experience-year">
-                                2026
-                            </span>
-                        </div>
-
-                        <h3>
-                            SBF Committee
-                        </h3>
-
-                        <p class="organization">
-                            BEM Fasilkom UI
-                        </p>
-
-                        <p class="experience-description">
-                            Taking part in committee activities and working
-                            collaboratively with other team members.
-                        </p>
-
-                        <div class="experience-tag">
-                            Teamwork
-                        </div>
-
-                    </article>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =========================
              SKILLS
         ========================== -->
         <section class="content-section skills-section" id="skills">
@@ -424,7 +257,7 @@
             <div class="container">
 
                 <div class="section-title">
-                    <span class="section-number">03</span>
+                    <span class="section-number">02</span>
 
                     <div>
                         <p class="section-kicker">What I Work With</p>
@@ -576,7 +409,7 @@
     ========================== -->
     <footer class="site-footer">
         <div class="container footer-content">
-            <p>&copy; 2026 Michelle Yuyun Margarethy Aritonang. All rights reserved.</p>
+            <p>&copy; 2026 {{ name }}. All rights reserved.</p>
             <p>Designed & Built with Care.</p>
         </div>
     </footer>
