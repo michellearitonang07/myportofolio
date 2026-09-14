@@ -1,419 +1,372 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>{{ name }} | Portfolio</title>
+{% block meta %}
+<title>{{ name }} | Portfolio</title>
+{% endblock meta %}
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-</head>
-
-<body>
+{% block content %}
+<main>
 
     <!-- =========================
-         HEADER
+         HERO / PROFILE
     ========================== -->
-    <header class="site-header">
-        <div class="container nav-container">
+    <section class="hero" id="profile">
 
-            <a href="{% url 'main:show_main' %}" class="brand">
-                Michelle<span>.</span>
-            </a>
+        <div class="container hero-grid">
 
-            <nav class="nav-links">
-                <a href="{% url 'main:show_main' %}">Home</a>
-                <a href="#about">About</a>
-                <a href="#education">Education</a>
-                <a href="{% url 'main:show_experience' %}">Experience</a>
-                <li><a href="{% url 'main:show_projects' %}">Projects</a></li>
-                <a href="#skills">Skills</a>
-            </nav>
+            <div class="hero-content">
 
-        </div>
-    </header>
+                <p class="eyebrow">
+                    {{ study_program }} · Universitas Indonesia
+                </p>
 
+                <p class="hero-intro">
+                    Hello, I'm
+                </p>
 
-    <main>
+                <h1>
+                    {{ name }}
+                </h1>
 
-        <!-- =========================
-             HERO / PROFILE
-        ========================== -->
-        <section class="hero" id="profile">
+                <p class="hero-role">
+                    INFORMATION SYSTEMS STUDENT
+                </p>
 
-            <div class="container hero-grid">
+                <p class="bio" id="about">
+                    {{ bio }}
+                </p>
 
-                <div class="hero-content">
+                <div class="meta-grid">
 
-                    <p class="eyebrow">
-                        {{ study_program }} · Universitas Indonesia
-                    </p>
-
-                    <p class="hero-intro">
-                        Hello, I'm
-                    </p>
-
-                    <h1>
-                        {{ name }}
-                    </h1>
-
-                    <p class="hero-role">
-                        INFORMATION SYSTEMS STUDENT
-                    </p>
-
-                    <p class="bio" id="about">
-                        {{ bio }}
-                    </p>
-
-                    <div class="meta-grid">
-
-                        <div class="meta-item">
-                            <span class="meta-label">NPM</span>
-                            <span class="meta-value">{{ npm }}</span>
-                        </div>
-
-                        <div class="meta-item">
-                            <span class="meta-label">Major</span>
-                            <span class="meta-value">{{ study_program }}</span>
-                        </div>
-
-                        <div class="meta-item">
-                            <span class="meta-label">Faculty</span>
-                            <span class="meta-value">Faculty of Computer Science</span>
-                        </div>
-
-                        <div class="meta-item">
-                            <span class="meta-label">University</span>
-                            <span class="meta-value">Universitas Indonesia</span>
-                        </div>
-
+                    <div class="meta-item">
+                        <span class="meta-label">NPM</span>
+                        <span class="meta-value">{{ npm }}</span>
                     </div>
 
-                    <!-- Social Links -->
-                    <div class="social-links">
+                    <div class="meta-item">
+                        <span class="meta-label">Major</span>
+                        <span class="meta-value">{{ study_program }}</span>
+                    </div>
 
-                        <a
-                            href="https://github.com/michellearitonang07"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="btn btn-dark"
-                        >
-                            GitHub ↗
-                        </a>
+                    <div class="meta-item">
+                        <span class="meta-label">Faculty</span>
+                        <span class="meta-value">Faculty of Computer Science</span>
+                    </div>
 
-                        <a
-                            href="https://www.linkedin.com/in/michelle-aritonang/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="btn btn-outline"
-                        >
-                            LinkedIn ↗
-                        </a>
-
-                        <a
-                            href="mailto:michellearitonang16@gmail.com"
-                            class="btn btn-outline"
-                        >
-                            Email ↗
-                        </a>
-
+                    <div class="meta-item">
+                        <span class="meta-label">University</span>
+                        <span class="meta-value">Universitas Indonesia</span>
                     </div>
 
                 </div>
 
+                <!-- Social Links -->
+                <div class="social-links">
 
-                <!-- Hero Visual -->
-                <div class="hero-visual">
+                    <a
+                        href="https://github.com/michellearitonang07"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-dark"
+                    >
+                        GitHub ↗
+                    </a>
 
-                    <div class="image-decoration"></div>
+                    <a
+                        href="https://www.linkedin.com/in/michelle-aritonang/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-outline"
+                    >
+                        LinkedIn ↗
+                    </a>
 
-                    <div class="image-frame">
+                    <a
+                        href="mailto:michellearitonang16@gmail.com"
+                        class="btn btn-outline"
+                    >
+                        Email ↗
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <!-- Hero Visual -->
+            <div class="hero-visual">
+
+                <div class="image-decoration"></div>
+
+                <div class="image-frame">
+                    <img
+                        src="{% static 'img/chelle.jpg' %}"
+                        alt="Portrait of Michelle"
+                        class="avatar"
+                    >
+                </div>
+
+                <div class="floating-note">
+                    <span>Currently exploring</span>
+                    <strong>Technology · Business · Projects</strong>
+                </div>
+
+                <div class="vertical-text">
+                    PORTFOLIO · 2026
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         EDUCATION
+    ========================== -->
+    <section class="content-section" id="education">
+
+        <div class="container">
+
+            <div class="section-title">
+                <span class="section-number">01</span>
+
+                <div>
+                    <p class="section-kicker">Academic Journey</p>
+                    <h2>Education</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                My academic background and current field of study.
+            </p>
+
+
+            <div class="education-list">
+
+                <!-- UI -->
+                <article class="education-card">
+
+                    <div class="card-number">01</div>
+
+                    <div class="institution-logo">
                         <img
-                            src="{% static 'img/chelle.jpg' %}"
-                            alt="Portrait of Michelle"
-                            class="avatar"
+                            src="{% static 'img/logo-ui.jpg' %}"
+                            alt="Universitas Indonesia logo"
                         >
                     </div>
 
-                    <div class="floating-note">
-                        <span>Currently exploring</span>
-                        <strong>Technology · Business · Projects</strong>
+                    <div class="education-info">
+
+                        <span class="date-label">
+                            2025 — PRESENT
+                        </span>
+
+                        <h3>Universitas Indonesia</h3>
+
+                        <p>
+                            Bachelor of Information Systems ·
+                            Faculty of Computer Science
+                        </p>
+
                     </div>
 
-                    <div class="vertical-text">
-                        PORTFOLIO · 2026
+                    <span class="card-arrow">↗</span>
+
+                </article>
+
+
+                <!-- SMAK -->
+                <article class="education-card">
+
+                    <div class="card-number">02</div>
+
+                    <div class="institution-logo">
+                        <img
+                            src="{% static 'img/Logo-PENABUR.jpg' %}"
+                            alt="SMAK 3 PENABUR Jakarta logo"
+                        >
                     </div>
 
-                </div>
+                    <div class="education-info">
+
+                        <span class="date-label">
+                            GRADUATED 2025
+                        </span>
+
+                        <h3>SMAK 3 PENABUR Jakarta</h3>
+
+                        <p>
+                            Mathematics and Natural Sciences ·
+                            High School Diploma
+                        </p>
+
+                    </div>
+
+                    <span class="card-arrow">↗</span>
+
+                </article>
 
             </div>
 
-        </section>
+        </div>
 
-
-        <!-- =========================
-             EDUCATION
-        ========================== -->
-        <section class="content-section" id="education">
-
-            <div class="container">
-
-                <div class="section-title">
-                    <span class="section-number">01</span>
-
-                    <div>
-                        <p class="section-kicker">Academic Journey</p>
-                        <h2>Education</h2>
-                    </div>
-                </div>
-
-                <p class="section-description">
-                    My academic background and current field of study.
-                </p>
-
-
-                <div class="education-list">
-
-                    <!-- UI -->
-                    <article class="education-card">
-
-                        <div class="card-number">01</div>
-
-                        <div class="institution-logo">
-                            <img
-                                src="{% static 'img/logo-ui.jpg' %}"
-                                alt="Universitas Indonesia logo"
-                            >
-                        </div>
-
-                        <div class="education-info">
-
-                            <span class="date-label">
-                                2025 — PRESENT
-                            </span>
-
-                            <h3>Universitas Indonesia</h3>
-
-                            <p>
-                                Bachelor of Information Systems ·
-                                Faculty of Computer Science
-                            </p>
-
-                        </div>
-
-                        <span class="card-arrow">↗</span>
-
-                    </article>
-
-
-                    <!-- SMAK -->
-                    <article class="education-card">
-
-                        <div class="card-number">02</div>
-
-                        <div class="institution-logo">
-                            <img
-                                src="{% static 'img/Logo-PENABUR.jpg' %}"
-                                alt="SMAK 3 PENABUR Jakarta logo"
-                            >
-                        </div>
-
-                        <div class="education-info">
-
-                            <span class="date-label">
-                                GRADUATED 2025
-                            </span>
-
-                            <h3>SMAK 3 PENABUR Jakarta</h3>
-
-                            <p>
-                                Mathematics and Natural Sciences ·
-                                High School Diploma
-                            </p>
-
-                        </div>
-
-                        <span class="card-arrow">↗</span>
-
-                    </article>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =========================
-             SKILLS
-        ========================== -->
-        <section class="content-section skills-section" id="skills">
-
-            <div class="container">
-
-                <div class="section-title">
-                    <span class="section-number">02</span>
-
-                    <div>
-                        <p class="section-kicker">What I Work With</p>
-                        <h2>Skills</h2>
-                    </div>
-                </div>
-
-                <p class="section-description">
-                    Technologies, creative tools, and interpersonal skills
-                    I am currently developing.
-                </p>
-
-
-                <div class="skills-layout">
-
-                    <!-- Programming -->
-                    <article class="skill-category featured-skill">
-
-                        <div class="skill-icon">
-                            &lt;/&gt;
-                        </div>
-
-                        <div>
-                            <span class="skill-category-label">
-                                01 · PROGRAMMING
-                            </span>
-
-                            <h3>
-                                Building digital foundations.
-                            </h3>
-
-                            <div class="skill-tags">
-                                <span>Python</span>
-                                <span>Java</span>
-                                <span>HTML5</span>
-                                <span>CSS3</span>
-                            </div>
-                        </div>
-
-                    </article>
-
-
-                    <!-- Software -->
-                    <article class="skill-category">
-
-                        <div class="skill-icon">
-                            ✦
-                        </div>
-
-                        <div>
-                            <span class="skill-category-label">
-                                02 · SOFTWARE
-                            </span>
-
-                            <h3>
-                                Creative & design tools.
-                            </h3>
-
-                            <div class="skill-tags">
-                                <span>Canva</span>
-                                <span>Figma</span>
-                                <span>CapCut</span>
-                            </div>
-                        </div>
-
-                    </article>
-
-
-                    <!-- Soft Skills -->
-                    <article class="skill-category">
-
-                        <div class="skill-icon">
-                            +
-                        </div>
-
-                        <div>
-                            <span class="skill-category-label">
-                                03 · SOFT SKILLS
-                            </span>
-
-                            <h3>
-                                Working with people.
-                            </h3>
-
-                            <div class="skill-tags">
-                                <span>Teamwork</span>
-                                <span>Communication</span>
-                                <span>Problem Solving</span>
-                                <span>Project Management</span>
-                            </div>
-                        </div>
-
-                    </article>
-
-
-                    <!-- Languages -->
-                    <article class="skill-category">
-
-                        <div class="skill-icon">
-                            Aa
-                        </div>
-
-                        <div>
-                            <span class="skill-category-label">
-                                04 · LANGUAGES
-                            </span>
-
-                            <h3>
-                                Spoken & written.
-                            </h3>
-
-                            <div class="skill-tags">
-                                <span>Indonesian (Native)</span>
-                                <span>English</span>
-                            </div>
-                        </div>
-
-                    </article>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =========================
-             CLOSING SECTION
-        ========================== -->
-        <section class="closing-section">
-            <div class="container closing-content">
-                <p class="section-kicker">Get In Touch</p>
-                <h2>Let's connect and build together.</h2>
-                <p>
-                    Feel free to reach out for collaborations or just a friendly chat!
-                </p>
-                <div class="closing-links social-links">
-                    <a href="mailto:michellearitonang16@gmail.com" class="btn btn-dark">Send Email ↗</a>
-                    <a href="https://www.linkedin.com/in/michelle-aritonang/" target="_blank" rel="noopener noreferrer" class="btn btn-light">LinkedIn ↗</a>
-                </div>
-            </div>
-        </section>
-
-    </main>
+    </section>
 
 
     <!-- =========================
-         FOOTER
+         SKILLS
     ========================== -->
-    <footer class="site-footer">
-        <div class="container footer-content">
-            <p>&copy; 2026 {{ name }}. All rights reserved.</p>
-            <p>Designed & Built with Care.</p>
-        </div>
-    </footer>
+    <section class="content-section skills-section" id="skills">
 
-</body>
-</html>
+        <div class="container">
+
+            <div class="section-title">
+                <span class="section-number">02</span>
+
+                <div>
+                    <p class="section-kicker">What I Work With</p>
+                    <h2>Skills</h2>
+                </div>
+            </div>
+
+            <p class="section-description">
+                Technologies, creative tools, and interpersonal skills
+                I am currently developing.
+            </p>
+
+
+            <div class="skills-layout">
+
+                <!-- Programming -->
+                <article class="skill-category featured-skill">
+
+                    <div class="skill-icon">
+                        &lt;/&gt;
+                    </div>
+
+                    <div>
+                        <span class="skill-category-label">
+                            01 · PROGRAMMING
+                        </span>
+
+                        <h3>
+                            Building digital foundations.
+                        </h3>
+
+                        <div class="skill-tags">
+                            <span>Python</span>
+                            <span>Java</span>
+                            <span>HTML5</span>
+                            <span>CSS3</span>
+                        </div>
+                    </div>
+
+                </article>
+
+
+                <!-- Software -->
+                <article class="skill-category">
+
+                    <div class="skill-icon">
+                        ✦
+                    </div>
+
+                    <div>
+                        <span class="skill-category-label">
+                            02 · SOFTWARE
+                        </span>
+
+                        <h3>
+                            Creative & design tools.
+                        </h3>
+
+                        <div class="skill-tags">
+                            <span>Canva</span>
+                            <span>Figma</span>
+                            <span>CapCut</span>
+                        </div>
+                    </div>
+
+                </article>
+
+
+                <!-- Soft Skills -->
+                <article class="skill-category">
+
+                    <div class="skill-icon">
+                        +
+                    </div>
+
+                    <div>
+                        <span class="skill-category-label">
+                            03 · SOFT SKILLS
+                        </span>
+
+                        <h3>
+                            Working with people.
+                        </h3>
+
+                        <div class="skill-tags">
+                            <span>Teamwork</span>
+                            <span>Communication</span>
+                            <span>Problem Solving</span>
+                            <span>Project Management</span>
+                        </div>
+                    </div>
+
+                </article>
+
+
+                <!-- Languages -->
+                <article class="skill-category">
+
+                    <div class="skill-icon">
+                        Aa
+                    </div>
+
+                    <div>
+                        <span class="skill-category-label">
+                            04 · LANGUAGES
+                        </span>
+
+                        <h3>
+                            Spoken & written.
+                        </h3>
+
+                        <div class="skill-tags">
+                            <span>Indonesian (Native)</span>
+                            <span>English</span>
+                        </div>
+                    </div>
+
+                </article>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         CLOSING SECTION
+    ========================== -->
+    <section class="closing-section">
+        <div class="container closing-content">
+            <p class="section-kicker">Get In Touch</p>
+            <h2>Let's connect and build together.</h2>
+            <p>
+                Feel free to reach out for collaborations or just a friendly chat!
+            </p>
+            <div class="closing-links social-links">
+                <a href="mailto:michellearitonang16@gmail.com" class="btn btn-dark">Send Email ↗</a>
+                <a href="https://www.linkedin.com/in/michelle-aritonang/" target="_blank" rel="noopener noreferrer" class="btn btn-light">LinkedIn ↗</a>
+            </div>
+        </div>
+    </section>
+
+</main>
+{% endblock content %}
