@@ -1,4 +1,3 @@
-import json
 from django.contrib import messages
 from django.core import serializers
 from django.http import HttpResponse
@@ -70,13 +69,11 @@ def get_project_xml_by_id(request, id):
 
 
 def show_projects(request):
-    json_response = get_projects_json(request)
-    projects = serializers.deserialize(
-        "json",
-        json_response.content.decode("utf-8"),
-    )
-    projects = [project.object for project in projects]
     title_query = request.GET.get("title", "").strip()
+    projects = Project.objects.all()
+    if title_query:
+        projects = projects.filter(title__icontains=title_query)
+
     context = {
         "name": "Michelle Yuyun Margarethy Aritonang",
         "project_list": projects,

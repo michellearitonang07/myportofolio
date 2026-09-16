@@ -24,11 +24,10 @@ urlpatterns = [
         name="delete_project",
     ),
     path("api/projects/", get_projects_json, name="get_projects_json"),
-    # Endpoint XML & ID
     path("json/", get_projects_json, name="get_projects_json_legacy"),
     path("xml/", get_projects_xml, name="get_projects_xml"),
     path(
-        "json/<str:id>/", get_project_json_by_id, name="get_project_json_by_id"
+        "json/<uuid:id>/", get_project_json_by_id, name="get_project_json_by_id"
     ),
-    path("xml/<str:id>/", get_project_xml_by_id, name="get_project_xml_by_id"),
+    path("xml/<uuid:id>/", get_project_xml_by_id, name="get_project_xml_by_id"),
 ]
