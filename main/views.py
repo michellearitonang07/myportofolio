@@ -3,7 +3,7 @@ from django.core import serializers
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from main.forms import ProjectForm
+from main.forms import ExperienceForm, ProjectForm
 from main.models import Experience, Project
 
 
@@ -21,56 +21,99 @@ def show_main(request):
     return render(request, "index.html", context)
 
 
+# --- EXPERIENCE VIEWS ---
+
 def show_experience(request):
+    # 1. Ambil data Experience dari database
+    raw_data = Experience.objects.all()
+
+    # 2. Serialize objek Django menjadi JSON
+    data_json = serializers.serialize("json", raw_data)
+
+    # 3. Deserialize JSON kembali menjadi objek Django
+    experience_list = [
+        item.object
+        for item in serializers.deserialize("json", data_json)
+    ]
+
     context = {
         "name": "Michelle Yuyun Margarethy Aritonang",
-        "experience_list": Experience.objects.all(),
+        "experience_list": experience_list,
     }
+
     return render(request, "experience.html", context)
 
 
-def create_project(request):
-    form = ProjectForm(request.POST or None)
+def create_experience(request):
+    form = ExperienceForm(request.POST or None)
+
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, "Proyek baru berhasil ditambahkan!")
-        return redirect("main:show_projects")
+        messages.success(request, "Pengalaman baru berhasil ditambahkan!")
+        return redirect("main:show_experience")
 
-    context = {"form": form}
-    return render(request, "projects_form.html", context)
+    context = {
+        "form": form,
+        "title": "Tambah Pengalaman",
+    }
 
-
-def get_projects_json(request):
-    title_query = request.GET.get("title", "").strip()
-    projects = Project.objects.all()
-    if title_query:
-        projects = projects.filter(title__icontains=title_query)
-
-    projects_json = serializers.serialize("json", projects)
-    return HttpResponse(projects_json, content_type="application/json")
+    return render(request, "experience_form.html", context)
 
 
-def get_projects_xml(request):
-    projects = Project.objects.all()
-    projects_xml = serializers.serialize("xml", projects)
-    return HttpResponse(projects_xml, content_type="application/xml")
+def edit_experience(request, id):
+    experience = get_object_or_404(Experience, pk=id)
+    form = ExperienceForm(request.POST or None, instance=experience)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Pengalaman berhasil diperbarui!")
+        return redirect("main:show_experience")
+
+    context = {
+        "form": form,
+        "title": "Edit Pengalaman",
+    }
+
+    return render(request, "experience_form.html", context)
 
 
-def get_project_json_by_id(request, id):
-    project = Project.objects.filter(pk=id)
-    project_json = serializers.serialize("json", project)
-    return HttpResponse(project_json, content_type="application/json")
+def delete_experience(request, id):
+    experience = get_object_or_404(Experience, pk=id)
+
+    if request.method == "POST":
+        experience.delete()
+        messages.success(request, "Pengalaman berhasil dihapus!")
+        return redirect("main:show_experience")
+
+    return redirect("main:show_experience")
 
 
-def get_project_xml_by_id(request, id):
-    project = Project.objects.filter(pk=id)
-    project_xml = serializers.serialize("xml", project)
-    return HttpResponse(project_xml, content_type="application/xml")
+def get_experiences_json(request):
+    experiences = Experience.objects.all()
+    experiences_json = serializers.serialize("json", experiences)
 
+    return HttpResponse(
+        experiences_json,
+        content_type="application/json"
+    )
+
+
+def get_experience_json_by_id(request, id):
+    experience = Experience.objects.filter(pk=id)
+    experience_json = serializers.serialize("json", experience)
+
+    return HttpResponse(
+        experience_json,
+        content_type="application/json"
+    )
+
+
+# --- PROJECT VIEWS ---
 
 def show_projects(request):
     title_query = request.GET.get("title", "").strip()
     projects = Project.objects.all()
+
     if title_query:
         projects = projects.filter(title__icontains=title_query)
 
@@ -79,13 +122,76 @@ def show_projects(request):
         "project_list": projects,
         "title_query": title_query,
     }
+
     return render(request, "projects.html", context)
+
+
+def create_project(request):
+    form = ProjectForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Proyek baru berhasil ditambahkan!")
+        return redirect("main:show_projects")
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "projects_form.html", context)
 
 
 def delete_project(request, project_id):
     project = get_object_or_404(Project, pk=project_id)
+
     if request.method == "POST":
         project.delete()
         messages.success(request, "Project berhasil dihapus!")
         return redirect("main:show_projects")
+
     return redirect("main:show_projects")
+
+
+def get_projects_json(request):
+    title_query = request.GET.get("title", "").strip()
+    projects = Project.objects.all()
+
+    if title_query:
+        projects = projects.filter(title__icontains=title_query)
+
+    projects_json = serializers.serialize("json", projects)
+
+    return HttpResponse(
+        projects_json,
+        content_type="application/json"
+    )
+
+
+def get_projects_xml(request):
+    projects = Project.objects.all()
+    projects_xml = serializers.serialize("xml", projects)
+
+    return HttpResponse(
+        projects_xml,
+        content_type="application/xml"
+    )
+
+
+def get_project_json_by_id(request, id):
+    project = Project.objects.filter(pk=id)
+    project_json = serializers.serialize("json", project)
+
+    return HttpResponse(
+        project_json,
+        content_type="application/json"
+    )
+
+
+def get_project_xml_by_id(request, id):
+    project = Project.objects.filter(pk=id)
+    project_xml = serializers.serialize("xml", project)
+
+    return HttpResponse(
+        project_xml,
+        content_type="application/xml"
+    )
