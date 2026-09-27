@@ -4,6 +4,7 @@ from main.views import (
     create_project,
     delete_experience,
     delete_project,
+    toggle_star,
     edit_experience,
     get_experience_json_by_id,
     get_experiences_json,
@@ -11,6 +12,9 @@ from main.views import (
     get_project_xml_by_id,
     get_projects_json,
     get_projects_xml,
+    register,
+    login_user,
+    logout_user,
     show_experience,
     show_main,
     show_projects,
@@ -20,6 +24,10 @@ app_name = "main"
 
 urlpatterns = [
     path("", show_main, name="show_main"),
+    path("register/", register, name="register"),
+    path("login/", login_user, name="login"),
+    path("logout/", logout_user, name="logout"),
+    path("projects/<uuid:project_id>/star/", toggle_star, name="toggle_star"),
     
     # Experience
     path("experience/", show_experience, name="show_experience"),

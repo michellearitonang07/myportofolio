@@ -162,6 +162,13 @@ p {
     width: 100%;
 }
 
+.nav-user {
+    color: var(--burgundy);
+    font-family: "DM Sans", sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
 
 /* ==========================================
    4. HERO
@@ -1161,7 +1168,7 @@ p {
 
 /* ==========================================
    15. RESPONSIVE — MOBILE
-   ========================================== */
+========================================== */
 
 @media (max-width: 600px) {
 
@@ -1171,17 +1178,13 @@ p {
 
     .nav-container {
         align-items: flex-start;
-
         padding: 1rem 0;
-
         gap: 1rem;
     }
 
     .nav-links {
         flex-wrap: wrap;
-
         justify-content: flex-end;
-
         gap: 0.7rem 1rem;
     }
 
@@ -1200,7 +1203,6 @@ p {
 
     .hero h1 {
         font-size: 3.35rem;
-
         letter-spacing: -0.05em;
     }
 
@@ -1223,11 +1225,8 @@ p {
 
     .floating-note {
         right: -5px;
-
         bottom: 10px;
-
         width: 190px;
-
         padding: 0.9rem 1rem;
     }
 
@@ -1249,7 +1248,6 @@ p {
 
     .education-card {
         grid-template-columns: 1fr;
-
         align-items: flex-start;
     }
 
@@ -1272,4 +1270,36 @@ p {
     .footer-content {
         flex-direction: column;
     }
+}
+
+
+/* ==========================================
+   16. STAR BUTTON
+========================================== */
+
+.star-form {
+    display: inline;
+}
+
+.button-star {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    background: var(--burgundy);
+    color: var(--white);
+}
+
+.button-star.is-starred {
+    background: var(--gold);
+}
+
+.star-count {
+    padding: 0.05rem 0.4rem;
+
+    border-radius: 999px;
+
+    background: rgba(255, 255, 255, 0.25);
+
+    font-size: 0.8rem;
 }
