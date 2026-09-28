@@ -1,4 +1,4 @@
-# Portfolio Website - Tugas 1, Tugas 2 & Tugas 3 PBP
+# Portfolio Website - Tugas 1, 2, 3 & 4 PBP
 
 Nama: Michelle Yuyun Margarethy Aritonang
 
@@ -220,3 +220,239 @@ Mengimplementasikan Django dan konsep MVT. Data project mulai disimpan menggunak
 ### Week 3
 
 Menambahkan fitur pengelolaan data menggunakan ModelForm. Pada bagian Experience, pengguna dapat menambahkan, mengubah, dan menghapus data pengalaman melalui form. Saya juga mengimplementasikan penyediaan data dalam format JSON serta proses serialization dan deserialization untuk menampilkan data pada halaman Experience.
+
+---
+
+## Tutorial 04: Autentikasi, Session, dan Cookie
+
+Implementasi memakai `User` bawaan Django, `UserCreationForm` untuk registrasi,
+serta `AuthenticationForm(request, data=...)` untuk login. Registrasi menyimpan
+password dalam bentuk hash, menampilkan error validasi, dan mengarahkan pengguna
+ke login dengan pesan sukses. Registrasi tidak langsung login dan tidak memberi
+hak staff, Editor, atau superuser. Nama pemilik portofolio tetap Michelle Yuyun
+Margarethy Aritonang; username di navbar adalah akun pengunjung yang sedang login.
+
+`login()` membuat session Django. Cookie `sessionid` mengidentifikasi session di
+server; cookie `last_login` hanya menampilkan waktu login dalam zona Asia/Jakarta,
+bukan sumber hak akses. Cookie ini menggunakan `HttpOnly` dan `SameSite=Lax`.
+Logout memakai form **POST dengan CSRF**, mengakhiri session, menghapus
+`last_login`, lalu kembali ke profil. GET `/logout/` menghasilkan 405 dan tidak
+mengubah session. Ini penyesuaian keamanan terhadap contoh tautan GET di tutorial.
+
+Semua form mutasi memakai `{% csrf_token %}` dan `CsrfViewMiddleware` tetap aktif.
+Form kosong maupun kredensial salah menampilkan error. Tidak ada `csrf_exempt`
+dan tidak ada AJAX tambahan karena aplikasi memakai form HTML biasa.
+
+Project tetap dapat dibaca publik dan dicari berdasarkan judul. Create/delete
+Project hanya untuk superuser: pengunjung diarahkan ke `/login/`, pengguna biasa
+maupun Editor mendapat 403. Tombol create/delete hanya tampil untuk superuser.
+Semua pengguna login dapat Star/Unstar melalui POST; satu pengguna maksimal satu
+star per Project. GET endpoint star menghasilkan 405 bagi pengguna login.
+
+`/api/projects/`, `/json/`, `/json/<uuid>/`, `/xml/`, dan `/xml/<uuid>/` tetap
+tersedia. Relasi star memakai natural key User, sehingga JSON menampilkan
+`[["username"]]`, bukan ID database pengguna. Password dan data session tidak
+ikut diserialisasi. Username pemberi star merupakan informasi publik.
+
+### Hasil audit Tutorial 04
+
+- Sudah tersedia: konfigurasi auth/session/messages/CSRF, form auth bawaan,
+  navbar, last_login, otorisasi Project, relasi star, dan API Project utama.
+- Diperbaiki: logout via GET, POST kosong yang sebelumnya tidak menampilkan error,
+  error form Project yang tidak dirender, serta ID User numerik pada API lama.
+- Konfigurasi secret dipindahkan dari kode ke environment; wildcard host dihapus.
+- `.gitignore` dilengkapi `.venv/` dan `.env*`. Tidak ada `.env`, database,
+  virtualenv, bytecode, atau hasil collectstatic yang dilacak pada hasil audit.
+- Skrip Selenium kini memvalidasi akun uji yang sudah ada, tanpa membuat,
+  mengganti password, atau mempromosikan akun secara otomatis.
+
+## Tugas 4: Hak Akses Experience
+
+Model pilihan dari Tugas 3 adalah **Experience**. Relasi
+`starred_by = ManyToManyField(User, related_name="starred_experiences", blank=True)`
+dan migrasi `0004_experience_starred_by` sudah ada di working tree saat audit dan
+sudah diterapkan pada database lokal. Perubahan tersebut dipertahankan dan
+kemudian di-commit bersama backend; tidak dibuat migrasi duplikat.
+
+| Peran | Baca | Star/Unstar | Create | Edit | Delete |
+| --- | --- | --- | --- | --- | --- |
+| Pengunjung | Ya | Login dahulu | Login dahulu | Login dahulu | Login dahulu |
+| Pengguna biasa | Ya | Ya | 403 | 403 | 403 |
+| Editor | Ya | Ya | 403 | Ya | 403 |
+| Superuser | Ya | Ya | Ya | Ya | Ya |
+
+`@login_required` memeriksa autentikasi sebelum pemeriksaan role. Helper
+`is_editor(user)` memeriksa keanggotaan **Group bernama persis `Editor`**; username
+atau atribut staff saja tidak cukup. Editor pada aplikasi ini boleh mengedit
+Experience, tetapi tidak diberi hak pemilik pada Project. Semua pemeriksaan
+berlaku di view, termasuk jika URL diakses langsung.
+
+Template menampilkan create/delete hanya untuk superuser dan edit untuk
+superuser atau Editor. Form star tetap dapat dilihat pengunjung, tetapi POST-nya
+akan diarahkan ke login. Setelah login, pengguna kembali ke profil dan dapat
+membuka Experience untuk memberi star; aksi POST tidak diulang otomatis.
+
+Endpoint `experience/<uuid>/star/` hanya menerima POST untuk pengguna login.
+Tombol menampilkan Star/Unstar, jumlah star, dan status aksesibilitas
+`aria-pressed`. Relasi ManyToMany mencegah pasangan pengguna/Experience ganda.
+Create/edit memvalidasi `ExperienceForm`; delete hanya menghapus pada POST.
+GET delete tidak menghapus data.
+
+API publik `/api/experience/` dan `/api/experience/<uuid>/` tetap memakai format
+serializer Django dan `use_natural_foreign_keys=True`. Field Experience lama
+tetap tersedia; `starred_by` berisi natural key username. Alur
+serialization/deserialization halaman dari Tugas 3 tetap dipertahankan.
+
+### Setup lokal dan migrasi
+
+Dari direktori yang berisi `manage.py`:
+
+```bash
+python -m venv env
+source env/bin/activate  # macOS/Linux; Windows: env\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py check
+python manage.py runserver
+```
+
+CSS berada di `main/static/css/style.css` dan ditemukan melalui app static
+finder. Tidak perlu menambahkan direktori yang sama ke `STATICFILES_DIRS`.
+Untuk deployment, jalankan `python manage.py collectstatic --noinput` setelah
+perubahan CSS; hasil `staticfiles/` tidak boleh di-commit. Jika browser masih
+menampilkan stylesheet lama, lakukan hard refresh.
+
+Konfigurasi menggunakan environment proses:
+
+- `DJANGO_DEBUG` default `true` untuk pengembangan lokal; set `false` saat deploy.
+- `DJANGO_SECRET_KEY`: gunakan secret acak yang stabil di environment deployment.
+  Saat debug mati, server menolak startup jika nilai ini tidak disediakan.
+- Tanpa secret pada mode lokal, Django menggunakan secret acak per proses,
+  sehingga session lama tidak bertahan setelah restart. Untuk session lokal yang
+  stabil selama terminal yang sama, jalankan sebelum server:
+
+```bash
+export DJANGO_SECRET_KEY="$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')"
+```
+
+Settings aplikasi tidak otomatis membaca `.env`; gunakan environment terminal
+atau konfigurasi platform deployment. `.env` hanya dibaca skrip Selenium.
+Pada deployment HTTPS (`DJANGO_DEBUG=false`), session dan CSRF cookie memakai
+`Secure`. Host localhost dan domain PWS proyek tetap diizinkan secara eksplisit.
+Secret lama pernah berada di kode Git; penghapusan dari settings tidak menghapus
+riwayat. Gunakan secret baru di deployment, jangan gunakan kembali nilai lama.
+
+### Menetapkan Editor melalui Django Admin
+
+1. Jalankan `python manage.py createsuperuser` jika belum memiliki akun pemilik,
+   lalu `python manage.py runserver`.
+2. Login ke `http://127.0.0.1:8000/admin/` dengan superuser.
+3. Pada **Authentication and Authorization → Groups**, buat grup **Editor**
+   jika belum ada. Simpan; tidak perlu memberi izin create/delete.
+4. Buka **Users**, pilih akun pengguna biasa, tambahkan grup **Editor**, dan simpan.
+5. Login sebagai akun tersebut pada aplikasi. Pastikan Edit Experience tampil,
+   sedangkan Tambah/Hapus tidak tampil dan akses langsung create/delete mendapat 403.
+
+Keanggotaan grup ini diperiksa oleh aplikasi portofolio. Akun Editor tidak perlu
+`is_staff` atau akses Django Admin. Jangan otomatis menambahkan akun registrasi
+ke grup atau mengubahnya menjadi superuser. Audit tidak mengubah role akun lokal.
+
+### Pengujian
+
+```bash
+python manage.py check
+python manage.py test
+python manage.py showmigrations
+python manage.py makemigrations --check --dry-run
+```
+
+27 tes Django mencakup tes lama, registrasi/hash password, invalid form, login,
+navbar, session, last_login, logout, empat role Experience, perubahan data,
+star/unstar dan duplikasi, template sesuai role, API JSON/XML lama, serta CSRF
+menggunakan `Client(enforce_csrf_checks=True)`. Setiap tes memakai database tes
+terpisah, bukan menghapus data portofolio lokal.
+
+Audit menjalankan tes pada virtualenv yang terpasang (Django 6.1) dan salinan
+sementara Django 5.2 sesuai `requirements.txt`; virtualenv pengguna tidak diganti.
+Semua migrasi hingga `main.0004` sudah diterapkan dan tidak ada perubahan model
+yang memerlukan migrasi tambahan.
+
+Selenium bersifat opsional. Untuk mengulang pengujian lokal:
+
+```bash
+pip install selenium python-dotenv
+python manage.py runserver 127.0.0.1:8000
+# Pada terminal kedua, dengan virtualenv aktif:
+python test_e2e.py --headless
+```
+
+Siapkan Chrome serta akun lokal `burhan_test` (biasa, tanpa grup) dan `admin_test`
+(superuser) secara eksplisit. Isi `.env` lokal dengan `E2E_USER_PASSWORD` dan
+`E2E_ADMIN_PASSWORD` yang cocok; jangan commit atau membagikan nilainya. Skrip
+berhenti jika akun/password/peran tidak cocok dan hanya menargetkan
+`http://127.0.0.1:8000`. Selenium memverifikasi CSRF form, login/cookie, penolakan
+Project untuk pengguna biasa, akses superuser, dan logout. Alur ini lulus saat
+audit. Role Editor diuji melalui database tes Django; ulangi dengan akun Editor
+pilihanmu pada browser untuk memeriksa pengalaman pengguna nyata.
+
+Burp Suite adalah latihan manual opsional dan tidak menjadi dependency aplikasi.
+
+### AI Disclosure Tutorial 04 dan Tugas 4
+
+**OpenAI Codex** digunakan dalam sesi audit dan implementasi ini. Penggunaan
+**ChatGPT** pada tugas sebelumnya sudah dijelaskan di bagian disclosure terdahulu.
+Bantuan Codex meliputi membaca persyaratan PDF Tutorial 04/Tugas 4, audit
+kode autentikasi/session/cookie, evaluasi desain otorisasi, penyelesaian role
+Editor dan fitur star, debugging, perencanaan serta implementasi tes, review
+perubahan kode, dan penyusunan dokumentasi.
+
+Strategi prompting adalah memberi konteks repository yang sudah berjalan,
+menentukan Experience sebagai model tugas, meminta audit Tutorial 04 selesai
+lebih dahulu, mempertahankan desain cream/burgundy dan endpoint lama, lalu
+mewajibkan tes dan commit berdasarkan tahap teknis nyata tanpa push otomatis.
+
+Catatan prompt nyata dari sesi ini (kutipan singkat):
+
+> FIRST audit and verify my existing Tutorial 04 implementation against the tutorial requirements.
+
+> Do NOT create duplicate migrations.
+
+> Do NOT push automatically.
+
+Hasil AI diperiksa terhadap persyaratan tugas dan kode repository, disesuaikan
+untuk route/template/desain proyek, serta diuji otomatis melalui Django dan
+Selenium. Contoh penyesuaian: mempertahankan migrasi 0004 yang sudah ada,
+memperbaiki logout menjadi POST, mempertahankan alur Tugas 3, serta membatasi
+Editor pada Experience tanpa memperluas otorisasi Project.
+
+Keterbatasan AI: hasil tes lokal tidak membuktikan konfigurasi deployment benar;
+contoh kode tutorial juga tetap perlu dinilai keamanannya. Kode frontend yang
+menyembunyikan tombol tidak menggantikan pemeriksaan server. Pemilik proyek
+perlu membaca perubahan, memahami alasan implementasi, memilih akun Editor,
+dan memverifikasi environment deployment. Tidak ada klaim bahwa review manual
+pemilik sudah selesai. **Tidak ada tautan chat/log eksternal yang disertakan**;
+catatan prompt di atas adalah ringkasan/kutipan sesi nyata, bukan percakapan buatan.
+
+### Weekly Progress: Week 4
+
+Mengaudit Tutorial 04 terlebih dahulu, memperbaiki auth/form/API dan konfigurasi,
+menjalankan tes serta Selenium, kemudian menyelesaikan backend dan UI empat role
+Experience dengan menggunakan perubahan lokal yang sudah ada. Pekerjaan
+tersimpan sebagai commit terpisah sesuai tahap yang benar-benar selesai.
+Dokumentasi minggu sebelumnya tetap dipertahankan.
+
+### Sebelum push dan pengumpulan
+
+```bash
+git status
+python manage.py check
+python manage.py test
+python manage.py showmigrations
+git diff --check
+git log --oneline -10
+```
+
+Belum ada push otomatis. Setelah review dan persetujuan pemilik, push dapat
+dilakukan secara eksplisit. Dokumen tugas meminta tautan **commit GitHub** hasil
+akhir untuk submisi, bukan hanya tautan repository. Proses push/submisi tetap
+merupakan langkah terpisah yang dilakukan pemilik.
