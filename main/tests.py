@@ -210,3 +210,132 @@ class TutorialAuthTests(TestCase):
         self.assertContains(self.client.get('/'), '/static/css/style.css')
         self.assertContains(self.client.get('/projects/?title=Project'), self.project.title)
         self.assertEqual(self.client.get('/api/projects/?title=missing').json(), [])
+
+
+class ExperienceRoleTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth.models import Group, User
+        cls.reader = User.objects.create_user('visitor')
+        cls.editor = User.objects.create_user('editor-member')
+        cls.editor.groups.add(Group.objects.create(name='Editor'))
+        cls.owner = User.objects.create_superuser('portfolio-owner')
+        cls.experience = Experience.objects.create(title='Original', description='Description', category='volunteer')
+        cls.payload = {'title': 'Updated', 'description': 'New description', 'category': 'research', 'thumbnail': '', 'ended_at': ''}
+
+    def urls(self):
+        return {
+            'create': reverse('main:create_experience'),
+            'edit': reverse('main:edit_experience', args=[self.experience.pk]),
+            'delete': reverse('main:delete_experience', args=[self.experience.pk]),
+            'star': reverse('main:toggle_experience_star', args=[self.experience.pk]),
+        }
+
+    def test_anonymous_read_and_login_redirects(self):
+        self.assertEqual(self.client.get('/experience/').status_code, 200)
+        for action, url in self.urls().items():
+            methods = ['post'] if action == 'star' else ['get', 'post']
+            for method in methods:
+                with self.subTest(action=action, method=method):
+                    self.assertRedirects(getattr(self.client, method)(url), '/login/?next=' + url)
+        self.assertEqual(self.experience.starred_by.count(), 0)
+
+    def test_reader_and_editor_forbidden_actions_do_not_change_data(self):
+        for user, forbidden in [(self.reader, ['create', 'edit', 'delete']), (self.editor, ['create', 'delete'])]:
+            self.client.force_login(user)
+            self.assertEqual(self.client.get('/experience/').status_code, 200)
+            for action in forbidden:
+                for method in ['get', 'post']:
+                    with self.subTest(user=user.username, action=action, method=method):
+                        self.assertEqual(getattr(self.client, method)(self.urls()[action], self.payload).status_code, 403)
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, 'Original')
+        self.assertEqual(Experience.objects.count(), 1)
+
+    def test_editor_and_owner_can_edit_and_validation_preserves_data(self):
+        for user in [self.editor, self.owner]:
+            self.client.force_login(user)
+            url = self.urls()['edit']
+            self.assertEqual(self.client.get(url).status_code, 200)
+            self.assertRedirects(self.client.post(url, self.payload), '/experience/')
+            self.experience.refresh_from_db()
+            self.assertEqual(self.experience.title, 'Updated')
+            response = self.client.post(url, {})
+            self.assertTrue(response.context['form'].errors)
+            self.experience.refresh_from_db()
+            self.assertEqual(self.experience.title, 'Updated')
+
+    def test_owner_can_create_and_delete_only_on_post(self):
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(self.urls()['create']).status_code, 200)
+        self.assertRedirects(self.client.post(self.urls()['create'], self.payload), '/experience/')
+        self.assertEqual(Experience.objects.count(), 2)
+        self.client.get(self.urls()['delete'])
+        self.assertTrue(Experience.objects.filter(pk=self.experience.pk).exists())
+        self.assertRedirects(self.client.post(self.urls()['delete']), '/experience/')
+        self.assertFalse(Experience.objects.filter(pk=self.experience.pk).exists())
+
+    def test_all_authenticated_roles_can_toggle_without_duplicate_stars(self):
+        for user in [self.reader, self.editor, self.owner]:
+            self.client.force_login(user)
+            self.assertEqual(self.client.get(self.urls()['star']).status_code, 405)
+            self.assertRedirects(self.client.post(self.urls()['star']), '/experience/')
+            self.assertEqual(self.experience.starred_by.count(), 1)
+            self.experience.starred_by.add(user)
+            self.assertEqual(self.experience.starred_by.count(), 1)
+            self.assertRedirects(self.client.post(self.urls()['star']), '/experience/')
+            self.assertEqual(self.experience.starred_by.count(), 0)
+        self.experience.starred_by.add(self.reader, self.editor)
+        self.assertEqual(self.experience.starred_by.count(), 2)
+
+    def test_group_membership_not_username_or_staff_controls_editor_access(self):
+        from django.contrib.auth.models import User
+        named_editor = User.objects.create_user('Editor', is_staff=True)
+        self.client.force_login(named_editor)
+        self.assertEqual(self.client.get(self.urls()['edit']).status_code, 403)
+        self.client.force_login(self.editor)
+        self.assertEqual(self.client.get(self.urls()['edit']).status_code, 200)
+        self.editor.groups.clear()
+        self.assertEqual(self.client.get(self.urls()['edit']).status_code, 403)
+
+    def test_editor_has_no_project_owner_permissions(self):
+        project = Project.objects.create(title='Keep', description='Test', tech_stack='Python')
+        self.client.force_login(self.editor)
+        for url in ['/projects/add/', reverse('main:delete_project', args=[project.pk])]:
+            self.assertEqual(self.client.get(url).status_code, 403)
+            self.assertEqual(self.client.post(url).status_code, 403)
+        star = reverse('main:toggle_star', args=[project.pk])
+        self.assertRedirects(self.client.post(star), '/projects/')
+        self.assertEqual(project.starred_by.count(), 1)
+        self.client.post(star)
+        self.assertEqual(project.starred_by.count(), 0)
+
+    def test_public_experience_json_uses_usernames_and_preserves_fields(self):
+        self.experience.starred_by.add(self.reader)
+        for url in ['/api/experience/', f'/api/experience/{self.experience.pk}/']:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            fields = response.json()[0]['fields']
+            self.assertEqual(fields['starred_by'], [['visitor']])
+            self.assertEqual(set(fields), {'title', 'description', 'category', 'thumbnail', 'started_at', 'ended_at', 'starred_by'})
+
+    def test_missing_objects_return_404(self):
+        import uuid
+        self.client.force_login(self.owner)
+        for action in ['edit', 'delete', 'star']:
+            url = f'/experience/{uuid.uuid4()}/{action}/'
+            self.assertEqual(self.client.post(url, self.payload).status_code, 404)
+
+    def test_csrf_required_for_every_experience_mutation(self):
+        from django.conf import settings
+        from django.test import Client
+        self.assertIn('django.middleware.csrf.CsrfViewMiddleware', settings.MIDDLEWARE)
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.owner)
+        for url in self.urls().values():
+            self.assertEqual(client.post(url, self.payload).status_code, 403)
+        response = client.get(self.urls()['edit'])
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        token = client.cookies['csrftoken'].value
+        self.assertRedirects(client.post(self.urls()['edit'], {**self.payload, 'csrfmiddlewaretoken': token}), '/experience/')
+        self.assertRedirects(client.post(self.urls()['star'], {'csrfmiddlewaretoken': token}), '/experience/')

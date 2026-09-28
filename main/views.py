@@ -13,6 +13,16 @@ from django.views.decorators.http import require_POST
 from main.forms import ExperienceForm, ProjectForm
 from main.models import Experience, Project
 
+
+# --- HELPER ROLE ---
+
+def is_editor(user):
+    return (
+        user.is_authenticated
+        and user.groups.filter(name="Editor").exists()
+    )
+
+
 # --- AUTHENTICATION VIEWS ---
 
 def register(request):
@@ -27,6 +37,7 @@ def register(request):
         "name": "Michelle Yuyun Margarethy Aritonang",
         "form": form,
     }
+
     return render(request, "register.html", context)
 
 
@@ -58,8 +69,10 @@ def login_user(request):
 @require_POST
 def logout_user(request):
     logout(request)
+
     response = redirect("main:show_main")
     response.delete_cookie("last_login", samesite="Lax")
+
     return response
 
 
@@ -87,13 +100,10 @@ def show_main(request):
 # --- EXPERIENCE VIEWS ---
 
 def show_experience(request):
-    # 1. Ambil data Experience dari database
     raw_data = Experience.objects.all()
 
-    # 2. Serialize objek Django menjadi JSON
     data_json = serializers.serialize("json", raw_data)
 
-    # 3. Deserialize JSON kembali menjadi objek Django
     experience_list = [
         item.object
         for item in serializers.deserialize("json", data_json)
@@ -102,13 +112,19 @@ def show_experience(request):
     context = {
         "name": "Michelle Yuyun Margarethy Aritonang",
         "experience_list": experience_list,
+        "is_editor": is_editor(request.user),
     }
 
     return render(request, "experience.html", context)
 
 
+@login_required(login_url="/login/")
 def create_experience(request):
-    form = ExperienceForm(request.POST or None)
+    # Hanya pemilik / superuser yang boleh membuat Experience
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
+    form = ExperienceForm(request.POST if request.method == "POST" else None)
 
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -123,9 +139,14 @@ def create_experience(request):
     return render(request, "experience_form.html", context)
 
 
+@login_required(login_url="/login/")
 def edit_experience(request, id):
+    # Editor dan superuser boleh mengubah Experience
+    if not (request.user.is_superuser or is_editor(request.user)):
+        raise PermissionDenied
+
     experience = get_object_or_404(Experience, pk=id)
-    form = ExperienceForm(request.POST or None, instance=experience)
+    form = ExperienceForm(request.POST if request.method == "POST" else None, instance=experience)
 
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -140,7 +161,12 @@ def edit_experience(request, id):
     return render(request, "experience_form.html", context)
 
 
+@login_required(login_url="/login/")
 def delete_experience(request, id):
+    # Hanya pemilik / superuser yang boleh menghapus Experience
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
     experience = get_object_or_404(Experience, pk=id)
 
     if request.method == "POST":
@@ -151,9 +177,28 @@ def delete_experience(request, id):
     return redirect("main:show_experience")
 
 
+@login_required(login_url="/login/")
+@require_POST
+def toggle_experience_star(request, id):
+    experience = get_object_or_404(Experience, pk=id)
+
+    if request.method == "POST":
+        if request.user in experience.starred_by.all():
+            experience.starred_by.remove(request.user)
+        else:
+            experience.starred_by.add(request.user)
+
+    return redirect("main:show_experience")
+
+
 def get_experiences_json(request):
     experiences = Experience.objects.all()
-    experiences_json = serializers.serialize("json", experiences)
+
+    experiences_json = serializers.serialize(
+        "json",
+        experiences,
+        use_natural_foreign_keys=True
+    )
 
     return HttpResponse(
         experiences_json,
@@ -163,7 +208,12 @@ def get_experiences_json(request):
 
 def get_experience_json_by_id(request, id):
     experience = Experience.objects.filter(pk=id)
-    experience_json = serializers.serialize("json", experience)
+
+    experience_json = serializers.serialize(
+        "json",
+        experience,
+        use_natural_foreign_keys=True
+    )
 
     return HttpResponse(
         experience_json,
