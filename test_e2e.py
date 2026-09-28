@@ -21,17 +21,15 @@ from django.contrib.auth.models import User
 
 
 def setup_users():
-    user, _ = User.objects.get_or_create(username="burhan_test")
-    user.set_password(USER_PASSWORD)
-    user.is_superuser = False
-    user.is_staff = False
-    user.save()
-
-    admin, _ = User.objects.get_or_create(username="admin_test")
-    admin.set_password(ADMIN_PASSWORD)
-    admin.is_superuser = True
-    admin.is_staff = True
-    admin.save()
+    # Existing local accounts must be provisioned explicitly, never promoted here.
+    user = User.objects.get(username="burhan_test")
+    admin = User.objects.get(username="admin_test")
+    if user.is_superuser or user.is_staff or user.groups.exists():
+        raise RuntimeError("burhan_test harus merupakan pengguna biasa tanpa grup.")
+    if not admin.is_superuser or not admin.is_staff:
+        raise RuntimeError("admin_test harus sudah menjadi superuser.")
+    if not user.check_password(USER_PASSWORD) or not admin.check_password(ADMIN_PASSWORD):
+        raise RuntimeError("Password akun lokal tidak cocok dengan konfigurasi E2E.")
 
 
 def main():
@@ -54,7 +52,7 @@ def main():
             driver.get(f"{base_url}/login/")
         except Exception:
             print(f"Server belum berjalan di {base_url}. Jalankan 'python manage.py runserver' terlebih dahulu.")
-            return
+            raise
         csrf = wait.until(
             EC.presence_of_element_located((By.NAME, "csrfmiddlewaretoken"))
         )
@@ -79,7 +77,8 @@ def main():
         print("[PASS] Otorisasi user biasa dibatasi (403)")
 
         # 4. Cek akses superuser ke form tambah proyek
-        driver.get(f"{base_url}/logout/")
+        driver.get(f"{base_url}/")
+        driver.find_element(By.CSS_SELECTOR, ".logout-form button").click()
         wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/login/')]")))
         driver.get(f"{base_url}/login/")
         wait.until(EC.presence_of_element_located((By.NAME, "username"))).send_keys("admin_test")
@@ -93,7 +92,8 @@ def main():
         print("[PASS] Akses superuser ke form proyek berhasil")
 
         # 5. Cek logout dan penghapusan cookie
-        driver.get(f"{base_url}/logout/")
+        driver.get(f"{base_url}/")
+        driver.find_element(By.CSS_SELECTOR, ".logout-form button").click()
         wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/login/')]")))
         cookie_last_login = driver.get_cookie("last_login")
         assert cookie_last_login is None or cookie_last_login["value"] == ""

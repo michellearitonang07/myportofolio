@@ -1303,3 +1303,15 @@ p {
 
     font-size: 0.8rem;
 }
+
+/* Keep the POST logout control consistent with navigation links. */
+.nav-logout {
+    border: 0;
+    background: transparent;
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.nav-logout:hover { color: var(--burgundy); }

@@ -15,3 +15,5 @@ staticfiles/
 
 # macOS / OS Files
 .DS_Store
+.venv/
+.env*

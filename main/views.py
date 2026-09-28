@@ -1,5 +1,4 @@
-import datetime
-
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -8,6 +7,8 @@ from django.core import serializers
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from main.forms import ExperienceForm, ProjectForm
 from main.models import Experience, Project
@@ -15,7 +16,7 @@ from main.models import Experience, Project
 # --- AUTHENTICATION VIEWS ---
 
 def register(request):
-    form = UserCreationForm(request.POST or None)
+    form = UserCreationForm(request.POST if request.method == "POST" else None)
 
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -30,7 +31,7 @@ def register(request):
 
 
 def login_user(request):
-    form = AuthenticationForm(request, data=request.POST or None)
+    form = AuthenticationForm(request, data=request.POST if request.method == "POST" else None)
 
     if request.method == "POST" and form.is_valid():
         user = form.get_user()
@@ -39,7 +40,10 @@ def login_user(request):
         response = redirect("main:show_main")
         response.set_cookie(
             "last_login",
-            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timezone.localtime().strftime("%Y-%m-%d %H:%M:%S"),
+            httponly=True,
+            samesite="Lax",
+            secure=settings.SESSION_COOKIE_SECURE,
         )
         return response
 
@@ -51,10 +55,11 @@ def login_user(request):
     return render(request, "login.html", context)
 
 
+@require_POST
 def logout_user(request):
     logout(request)
     response = redirect("main:show_main")
-    response.delete_cookie("last_login")
+    response.delete_cookie("last_login", samesite="Lax")
     return response
 
 
@@ -189,7 +194,7 @@ def create_project(request):
     if not request.user.is_superuser:
         raise PermissionDenied
 
-    form = ProjectForm(request.POST or None)
+    form = ProjectForm(request.POST if request.method == "POST" else None)
 
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -219,6 +224,7 @@ def delete_project(request, project_id):
 
 
 @login_required(login_url="/login/")
+@require_POST
 def toggle_star(request, project_id):
     project = get_object_or_404(Project, pk=project_id)
 
@@ -252,7 +258,7 @@ def get_projects_json(request):
 
 def get_projects_xml(request):
     projects = Project.objects.all()
-    projects_xml = serializers.serialize("xml", projects)
+    projects_xml = serializers.serialize("xml", projects, use_natural_foreign_keys=True)
 
     return HttpResponse(
         projects_xml,
@@ -262,7 +268,7 @@ def get_projects_xml(request):
 
 def get_project_json_by_id(request, id):
     project = Project.objects.filter(pk=id)
-    project_json = serializers.serialize("json", project)
+    project_json = serializers.serialize("json", project, use_natural_foreign_keys=True)
 
     return HttpResponse(
         project_json,
@@ -272,7 +278,7 @@ def get_project_json_by_id(request, id):
 
 def get_project_xml_by_id(request, id):
     project = Project.objects.filter(pk=id)
-    project_xml = serializers.serialize("xml", project)
+    project_xml = serializers.serialize("xml", project, use_natural_foreign_keys=True)
 
     return HttpResponse(
         project_xml,
