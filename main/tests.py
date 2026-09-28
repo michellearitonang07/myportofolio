@@ -339,3 +339,32 @@ class ExperienceRoleTests(TestCase):
         token = client.cookies['csrftoken'].value
         self.assertRedirects(client.post(self.urls()['edit'], {**self.payload, 'csrfmiddlewaretoken': token}), '/experience/')
         self.assertRedirects(client.post(self.urls()['star'], {'csrfmiddlewaretoken': token}), '/experience/')
+
+    def test_template_controls_match_each_role(self):
+        for user, can_create, can_edit, can_delete in [
+            (None, False, False, False), (self.reader, False, False, False),
+            (self.editor, False, True, False), (self.owner, True, True, True),
+        ]:
+            self.client.logout()
+            if user:
+                self.client.force_login(user)
+            response = self.client.get('/experience/')
+            for action, visible in [('create', can_create), ('edit', can_edit), ('delete', can_delete)]:
+                with self.subTest(user=user, action=action):
+                    markup = ('action' if action == 'delete' else 'href') + '="' + self.urls()[action] + '"'
+                    if visible:
+                        self.assertContains(response, markup)
+                    else:
+                        self.assertNotContains(response, markup)
+            self.assertContains(response, 'action="' + self.urls()['star'] + '"')
+            self.assertContains(response, 'name="csrfmiddlewaretoken"')
+            self.assertContains(response, '☆ Star')
+            self.assertContains(response, '<span class="star-count">0</span>', html=True)
+            if user:
+                self.client.post(self.urls()['star'])
+                response = self.client.get('/experience/')
+                self.assertContains(response, '★ Unstar')
+                self.assertContains(response, '<span class="star-count">1</span>', html=True)
+                self.assertContains(response, 'aria-pressed="true"')
+                self.client.post(self.urls()['star'])
+                self.assertContains(self.client.get('/experience/'), '☆ Star')

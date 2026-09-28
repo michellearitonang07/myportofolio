@@ -1315,3 +1315,34 @@ p {
     cursor: pointer;
 }
 .nav-logout:hover { color: var(--burgundy); }
+
+/* Shared tutorial form controls use the existing portfolio palette. */
+.button {
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--burgundy);
+    color: var(--white);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.project-form { max-width: 600px; margin: 1.5rem 0; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; margin-bottom: 0.35rem; }
+.project-form input, .project-form textarea, .form-control {
+    width: 100%;
+    padding: 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--white);
+    color: var(--text);
+    font: inherit;
+}
+.form-help { font-size: 0.8rem; margin: 0.5rem 0; }
+.form-help ul, .errorlist { padding-left: 1.25rem; }
+.form-error, .errorlist { font-weight: 600; }
+.form-message { margin: 1rem 0; }
+.experience-card .btn-outline { color: var(--white); background: transparent; }
+.experience-card .btn-outline:hover { color: var(--text); background: var(--white); }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
