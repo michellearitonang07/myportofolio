@@ -456,3 +456,184 @@ Belum ada push otomatis. Setelah review dan persetujuan pemilik, push dapat
 dilakukan secara eksplisit. Dokumen tugas meminta tautan **commit GitHub** hasil
 akhir untuk submisi, bukan hanya tautan repository. Proses push/submisi tetap
 merupakan langkah terpisah yang dilakukan pemilik.
+
+---
+
+## Tutorial 05: Web Interactivity with JavaScript
+
+Tutorial 05 melanjutkan fitur autentikasi dan otorisasi Tutorial 04. Precheck pada
+awal pengerjaan: working tree bersih, 27 tes sebelumnya lulus, system check bersih,
+dan seluruh migrasi sudah diterapkan. Tidak ditemukan bug prasyarat yang
+menghalangi Tutorial 05. Identitas Michelle, isi portofolio, desain cream/burgundy,
+dan fitur Experience/Editor dari Tugas 4 tetap dipertahankan.
+
+### Toast yang dapat dipakai ulang
+
+`components/toast.html` disertakan oleh `base.html` setelah footer dan memuat
+`main/static/js/toast.js`. Fungsi global
+`showToast(title, message, type = 'normal', duration = 3000)` menampilkan popover
+manual di kanan bawah, dengan tipe normal/success/error. Isi memakai `textContent`,
+bukan HTML. Timer lama dibatalkan ketika notifikasi baru datang, termasuk saat
+animasi keluar sedang berjalan. Toast memiliki live region untuk pembaca layar
+serta mengikuti preferensi reduced motion. Tidak ada tombol tes permanen.
+
+### Daftar dan pencarian Project melalui AJAX
+
+`show_projects` merender kerangka `projects.html`, nama pemilik, nilai pencarian,
+dan `ProjectForm()` untuk modal. Data kartu diambil terpisah melalui Fetch API.
+Halaman menyediakan status loading, error dengan tombol coba lagi, empty, dan
+grid. Pencarian memakai debounce **300 ms**; Enter/tombol Cari langsung mencari
+serta membatalkan timer. `AbortController` dan pemeriksaan request aktif mencegah
+hasil pencarian lama menimpa hasil baru. Pencarian dan create AJAX tidak memuat
+ulang dokumen halaman.
+
+**Perubahan kontrak API dibanding Tutorial 04:** `/api/projects/` kini berisi
+objek `pk` dan `fields` yang dirakit manual, dengan field berikut:
+
+```json
+{
+  "pk": "<uuid-project>",
+  "fields": {
+    "title": "Nama proyek",
+    "description": "Deskripsi",
+    "tech_stack": "Django",
+    "project_url": "https://example.com/",
+    "star_count": 1,
+    "is_starred": false,
+    "starred_by_names": "nama-pengguna"
+  }
+}
+```
+
+Response berupa list objek tersebut. `is_starred` mengikuti pengguna pada request;
+untuk pengunjung nilainya false. Query `?title=...` tetap didukung dan spasi di
+tepi dibuang. `prefetch_related("starred_by")` menghindari query tambahan per
+Project. Response tidak disimpan cache agar status pengguna tidak tertukar atau
+menjadi stale. Tidak ada field gambar karena model Project di repository ini
+memang tidak memilikinya. Password, email, session, dan ID internal User tidak
+dimasukkan ke JSON.
+
+Endpoint `/json/` sekarang menggunakan `get_projects_json_legacy` untuk menjaga
+format serializer Django sebelumnya. `/json/<uuid>/`, `/xml/`, `/xml/<uuid>/`,
+serta seluruh API Experience tetap tersedia dengan natural key pengguna.
+
+Kartu AJAX mempertahankan title, description, tech stack, tautan Project, serta
+form POST star/delete. CSRF token diklon dari template ke setiap form. URL aksi
+dibentuk dari Django URL reversal dengan UUID placeholder. Star dapat digunakan
+semua pengguna login, sedangkan delete hanya ditampilkan untuk superuser dan
+memakai `confirm()` sebelum submit. View lama tetap memeriksa hak akses server.
+Star/delete tetap memakai POST tradisional dan redirect, sesuai cakupan tutorial;
+komponen template lama juga dipertahankan.
+
+### Modal dan create AJAX
+
+Tombol Tambah Proyek dan `components/project_form_modal.html` hanya dirender
+untuk superuser. Modal memakai Popover API, label dialog, tombol backdrop/tutup/
+Batal, focus trap, dan layout mobile. Form tetap mempunyai action tradisional
+`/projects/add/`; route dan halaman form lama tetap berfungsi.
+
+JavaScript mengirim `FormData` ke `/projects/add-ajax/` dengan header
+`X-CSRFToken` dari cookie `csrftoken`. Submit dinonaktifkan selama request dan
+submit ganda dicegah. Pada sukses, modal ditutup, form direset, toast muncul,
+dan daftar di-fetch ulang dengan filter yang masih aktif. Proyek baru hanya
+terlihat jika cocok dengan filter. Pada gagal, modal dan isi form tetap ada;
+error validasi, respons non-JSON, dan gangguan jaringan ditampilkan melalui toast.
+Listener form hanya dipasang jika modal ada, sehingga halaman pengunjung biasa
+tidak memicu error karena elemen null.
+
+| Request | Hasil |
+| --- | --- |
+| POST valid, superuser, CSRF sah | 201 JSON dengan message dan pk |
+| POST form invalid oleh superuser | 400 JSON dengan errors per field |
+| POST pengunjung/pengguna biasa/Editor, CSRF sah | 403 JSON |
+| POST tanpa CSRF sah | 403 dari middleware Django |
+| GET endpoint create AJAX | 405 Method Not Allowed |
+
+Endpoint tidak memakai `login_required` agar penolakan otorisasi AJAX berupa JSON,
+bukan redirect HTML login. `@require_POST`, pemeriksaan `is_superuser`, dan
+`ProjectForm(request.POST)` tetap wajib; tidak ada `csrf_exempt`.
+
+### Pertahanan XSS dan pembersihan input
+
+Rendering aman diterapkan sejak milestone AJAX pertama, tanpa commit perantara
+yang sengaja rentan. Title, description, dan tech stack di template literal
+melewati `escapeHtml`; tooltip, label, dan hitungan star memakai DOM API/
+`textContent`. Tautan hanya dibuat untuk URL HTTP/HTTPS yang dapat diparse, sehingga
+nilai berbahaya dari data lama/Admin pun tidak menjadi tautan `javascript:`.
+
+`ProjectForm.clean_title`, `clean_description`, dan `clean_tech_stack` menghapus
+tag HTML serta whitespace tepi dan menolak hasil kosong. URLField tetap memvalidasi
+URL. Form yang sama dipakai endpoint tradisional maupun AJAX. Pembersihan adalah
+lapisan tambahan, **bukan pengganti escaping saat render**. Konsekuensinya, teks
+seperti `List<String>` dapat menjadi `List`; field ini diperlakukan sebagai teks
+biasa, bukan editor HTML.
+
+Tes stored XSS menggunakan payload `<img src="x" onerror="alert('XSS!')">`
+hanya pada database tes sementara. Payload yang sudah tersimpan tampil sebagai
+teks literal tanpa alert; create baru dengan judul hanya tag ditolak server.
+Database tes dibuang setelah pengujian, sehingga tidak ada payload uji tertinggal
+di database portofolio lokal.
+
+### Menjalankan dan menguji Tutorial 05
+
+Setup environment tetap mengikuti bagian sebelumnya. Tutorial 05 tidak mengubah
+model atau menambah migration. Gunakan browser modern dengan dukungan Fetch,
+AbortController, dan Popover API.
+
+```bash
+source env/bin/activate
+python manage.py check
+python manage.py test
+python manage.py showmigrations
+python manage.py makemigrations --check --dry-run
+python manage.py findstatic css/style.css js/toast.js
+python manage.py runserver
+```
+
+Tes default menjalankan **35 tes Django** dan melewati **9 tes browser opt-in**.
+Untuk menjalankan seluruh 44 tes, termasuk Chrome headless:
+
+```bash
+pip install selenium  # dependency tes browser opsional; Chrome juga diperlukan
+RUN_BROWSER_TESTS=1 python manage.py test --noinput
+# Atau hanya sembilan tes browser:
+RUN_BROWSER_TESTS=1 python manage.py test main.test_browser --noinput
+```
+
+`main/test_browser.py` menjalankan server lokal dan database tes sendiri. Tidak
+perlu menyalakan server lain, memasukkan password, atau mengubah role akun nyata.
+Tes mencakup toast berulang, debounce, loading/empty/error/retry, respons stale,
+XSS tersimpan, star/delete, modal keyboard/mobile, create tanpa reload, validasi,
+submit ganda, respons HTML, jaringan offline simulasi, dan sesi kedaluwarsa.
+QA akhir menjalankan seluruh **44 tes sekaligus dan semuanya lulus**.
+Chrome performance log memverifikasi POST 201, GET API 200, respons invalid 400,
+serta keberadaan header CSRF. Skenario kegagalan yang sengaja disimulasikan dapat
+mencatat error tertangani; tidak ada exception JavaScript yang tidak tertangani.
+
+Verifikasi juga dilakukan pada Django 5.2 sesuai `requirements.txt`, selain Django
+6.1 yang terpasang di virtualenv lokal. Static finder menunjuk file aplikasi yang
+benar. Smoke test `runserver` lokal memverifikasi halaman publik, auth, API,
+Admin, CSS, dan toast.js tanpa respons 500; screenshot desktop/mobile juga
+diperiksa. Jika browser masih memuat CSS/JS lama, lakukan hard reload/Disable Cache;
+hasil collectstatic dan screenshot tidak dimasukkan ke Git.
+
+### Progres dan AI disclosure Tutorial 05
+
+OpenAI Codex membantu membaca spesifikasi, precheck Tutorial 04, implementasi
+toast/AJAX/modal, desain penanganan error dan keamanan, tes Django/Selenium,
+review screenshot, serta dokumentasi. Prompt meminta perubahan bertahap di
+repository existing, mempertahankan fitur lama, menjalankan tes sebelum commit,
+dan berhenti sebelum push. Hasil diadaptasi ke `projects.html`, path static milik
+aplikasi, field Project yang benar-benar tersedia, dan palet warna existing.
+
+Keputusan implementasi yang diperiksa: menjaga format endpoint legacy secara
+terpisah, tidak menambah field gambar/migration, memasang escaping sejak awal,
+dan menggunakan database tes untuk payload XSS. Tes otomatis serta pemeriksaan
+screenshot desktop/mobile dilakukan; pemilik masih dapat meninjau langsung dengan
+akun pilihannya. Tidak ada tautan chat eksternal atau klaim review manual pemilik
+yang dibuat-buat. Log ringkas ini melengkapi disclosure sebelumnya.
+
+Milestone lokal: toast teruji; daftar/pencarian AJAX aman; modal teruji;
+create AJAX dengan pembersihan input bersama; dokumentasi dan QA akhir.
+Tidak ada push, deployment, atau submisi SCELE otomatis untuk Tutorial 05.
+Setelah puas meninjau hasil, pemilik dapat menjalankan `git push origin main`.
