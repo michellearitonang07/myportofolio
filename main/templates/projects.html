@@ -11,7 +11,9 @@
     <div class="project-header">
         <h1>Projects</h1>
         {% if user.is_superuser %}
-            <a href="{% url 'main:create_project' %}" class="btn btn-dark">+ Tambah Proyek</a>
+            <button type="button" class="btn btn-dark project-add-button" popovertarget="add-project-modal">
+                <span aria-hidden="true">+</span> Tambah Proyek
+            </button>
         {% endif %}
     </div>
 
@@ -37,6 +39,9 @@
     <noscript><p>Aktifkan JavaScript untuk memuat dan mencari proyek.</p></noscript>
     <template id="project-csrf-token">{% csrf_token %}</template>
 </main>
+{% if user.is_superuser %}
+    {% include "components/project_form_modal.html" %}
+{% endif %}
 
 <script>
     const BASE_PROJECTS_ENDPOINT = "{% url 'main:get_projects_json' %}";
@@ -188,6 +193,35 @@
         searchProjects();
     });
     document.getElementById('retry-projects').addEventListener('click', searchProjects);
+    function closeProjectModal() {
+        const modal = document.getElementById('add-project-modal');
+        if (modal) modal.hidePopover();
+    }
+
+    const projectModal = document.getElementById('add-project-modal');
+    if (projectModal) {
+        // Popovers are not modal by default: keep focus and interaction in this dialog.
+        projectModal.addEventListener('toggle', event => {
+            const isOpen = event.newState === 'open';
+            document.querySelectorAll('header, main, footer').forEach(element => { element.inert = isOpen; });
+            if (isOpen) projectModal.querySelector('input[name="title"]').focus();
+            else document.querySelector('.project-add-button').focus();
+        });
+        projectModal.addEventListener('keydown', event => {
+            if (event.key !== 'Tab') return;
+            const focusable = [...projectModal.querySelectorAll('.project-form-modal__content button, .project-form-modal__content input:not([type="hidden"]), .project-form-modal__content textarea')]
+                .filter(element => !element.disabled);
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+    }
     fetchProjects(searchInput.value.trim());
 </script>
 {% endblock content %}

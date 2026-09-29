@@ -416,3 +416,20 @@ class ProjectAjaxReadTests(TestCase):
         with self.assertNumQueries(2):
             response = get_projects_json(request)
         self.assertEqual(response.status_code, 200)
+
+    def test_add_modal_is_rendered_only_for_superuser(self):
+        from django.contrib.auth.models import User
+        owner = User.objects.create_superuser('modal-owner')
+        for user, visible in [(None, False), (self.reader, False), (owner, True)]:
+            self.client.logout()
+            if user:
+                self.client.force_login(user)
+            response = self.client.get('/projects/')
+            if visible:
+                self.assertContains(response, 'id="add-project-modal"')
+                self.assertContains(response, 'id="project-form"')
+                self.assertContains(response, 'action="/projects/add/"')
+                self.assertContains(response, 'name="csrfmiddlewaretoken"')
+            else:
+                self.assertNotContains(response, 'id="add-project-modal"')
+                self.assertNotContains(response, 'id="project-form"')

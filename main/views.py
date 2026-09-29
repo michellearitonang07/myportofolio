@@ -228,6 +228,7 @@ def show_projects(request):
     context = {
         "name": "Michelle Yuyun Margarethy Aritonang",
         "title_query": request.GET.get("title", "").strip(),
+        "form": ProjectForm(),
     }
     return render(request, "projects.html", context)
 

@@ -199,3 +199,34 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         self.wait.until(lambda d: d.find_element('id', 'empty').is_displayed())
         self.assertFalse(Project.objects.filter(pk=project.pk).exists())
         self.assert_no_js_errors()
+
+    def test_modal_open_close_keyboard_and_mobile_layout(self):
+        from selenium.webdriver.common.keys import Keys
+        self.seed_project()
+        self.login_browser(superuser=True)
+        self.open_projects()
+        for selector in ['.project-form-modal__close', '.project-form-modal__actions .button-secondary']:
+            self.browser.find_element('class name', 'project-add-button').click()
+            self.wait.until(lambda d: d.find_element('id', 'add-project-modal').is_displayed())
+            self.wait.until(lambda d: d.switch_to.active_element.get_attribute('name') == 'title')
+            self.browser.find_element('css selector', selector).click()
+            self.wait.until(lambda d: not d.find_element('id', 'add-project-modal').is_displayed() and not d.execute_script("return document.querySelector('main').inert"))
+        self.browser.find_element('class name', 'project-add-button').click()
+        self.wait.until(lambda d: d.find_element('id', 'add-project-modal').is_displayed())
+        self.browser.find_element('css selector', '#project-form button[type=submit]').send_keys(Keys.TAB)
+        self.assertIn('project-form-modal__close', self.browser.switch_to.active_element.get_attribute('class'))
+        self.browser.switch_to.active_element.send_keys(Keys.ESCAPE)
+        self.wait.until(lambda d: not d.find_element('id', 'add-project-modal').is_displayed() and not d.execute_script("return document.querySelector('main').inert"))
+        self.assertFalse(self.browser.execute_script("return document.querySelector('main').inert"))
+        self.browser.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {'width': 390, 'height': 844, 'deviceScaleFactor': 1, 'mobile': True})
+        try:
+            self.browser.find_element('class name', 'project-add-button').click()
+            self.wait.until(lambda d: d.find_element('id', 'add-project-modal').is_displayed())
+            self.assertTrue(self.browser.execute_script("""
+                const box = document.querySelector('.project-form-modal__content').getBoundingClientRect();
+                return box.left >= 0 && box.right <= innerWidth && box.bottom <= innerHeight;
+            """))
+            self.browser.find_element('css selector', '.project-form-modal__close').click()
+        finally:
+            self.browser.execute_cdp_cmd('Emulation.clearDeviceMetricsOverride', {})
+        self.assert_no_js_errors()
