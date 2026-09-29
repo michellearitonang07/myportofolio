@@ -62,9 +62,12 @@ class MainTest(TestCase):
         response = self.client.get(reverse("main:show_projects"))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "projects.html")
-        self.assertContains(response, self.project.title)
-        self.assertContains(response, self.project.description)
-        self.assertContains(response, self.project.tech_stack)
+        self.assertContains(response, 'id="grid"')
+        self.assertNotIn('project_list', response.context)
+        data = self.client.get('/api/projects/').json()[0]['fields']
+        self.assertEqual(data['title'], self.project.title)
+        self.assertEqual(data['description'], self.project.description)
+        self.assertEqual(data['tech_stack'], self.project.tech_stack)
 
     def test_empty_projects_page(self):
         Project.objects.all().delete()
@@ -170,8 +173,11 @@ class TutorialAuthTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 405)
         self.assertRedirects(self.client.post(url), '/projects/')
         self.assertEqual(self.project.starred_by.count(), 1)
-        self.assertContains(self.client.get('/projects/'), 'Unstar')
-        for path in ['/api/projects/', '/json/', f'/json/{self.project.pk}/']:
+        data = self.client.get('/api/projects/').json()[0]['fields']
+        self.assertTrue(data['is_starred'])
+        self.assertEqual(data['star_count'], 1)
+        self.assertEqual(data['starred_by_names'], 'reader')
+        for path in ['/json/', f'/json/{self.project.pk}/']:
             fields = self.client.get(path).json()[0]['fields']
             self.assertEqual(fields['starred_by'], [['reader']])
             self.assertEqual(set(fields), {'title', 'description', 'tech_stack', 'project_url', 'starred_by'})
@@ -208,7 +214,7 @@ class TutorialAuthTests(TestCase):
         self.assertEqual(self.client.get('/admin/').status_code, 302)
         self.assertIsNotNone(finders.find('css/style.css'))
         self.assertContains(self.client.get('/'), '/static/css/style.css')
-        self.assertContains(self.client.get('/projects/?title=Project'), self.project.title)
+        self.assertContains(self.client.get('/projects/?title=Project'), 'value="Project"')
         self.assertEqual(self.client.get('/api/projects/?title=missing').json(), [])
 
 
@@ -368,3 +374,45 @@ class ExperienceRoleTests(TestCase):
                 self.assertContains(response, 'aria-pressed="true"')
                 self.client.post(self.urls()['star'])
                 self.assertContains(self.client.get('/experience/'), '☆ Star')
+
+
+class ProjectAjaxReadTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth.models import User
+        cls.reader = User.objects.create_user('ajax-reader')
+        cls.other = User.objects.create_user('other-reader')
+        cls.project = Project.objects.create(title='Django Portfolio', description='Details', tech_stack='Django')
+        cls.project.starred_by.add(cls.reader, cls.other)
+
+    def test_api_star_metadata_depends_on_current_user(self):
+        for user, expected in [(None, False), (self.reader, True)]:
+            if user:
+                self.client.force_login(user)
+            response = self.client.get('/api/projects/')
+            item = response.json()[0]
+            self.assertEqual(item['pk'], str(self.project.pk))
+            fields = item['fields']
+            self.assertEqual(fields['is_starred'], expected)
+            self.assertEqual(fields['star_count'], 2)
+            self.assertEqual(set(fields['starred_by_names'].split(', ')), {'ajax-reader', 'other-reader'})
+            self.assertEqual(set(fields), {'title', 'description', 'tech_stack', 'project_url', 'star_count', 'is_starred', 'starred_by_names'})
+            self.assertIn('no-store', response.headers['Cache-Control'])
+
+    def test_search_is_trimmed_case_insensitive_and_can_be_empty(self):
+        self.assertEqual(len(self.client.get('/api/projects/', {'title': ' dJaNgO '}).json()), 1)
+        self.assertEqual(self.client.get('/api/projects/', {'title': 'missing'}).json(), [])
+        self.assertEqual(len(self.client.get('/api/projects/', {'title': '  '}).json()), 1)
+
+    def test_prefetch_avoids_query_per_project(self):
+        from django.contrib.auth.models import AnonymousUser
+        from django.test import RequestFactory
+        from main.views import get_projects_json
+        for number in range(5):
+            project = Project.objects.create(title=f'Project {number}', description='Test', tech_stack='Python')
+            project.starred_by.add(self.reader)
+        request = RequestFactory().get('/api/projects/')
+        request.user = AnonymousUser()
+        with self.assertNumQueries(2):
+            response = get_projects_json(request)
+        self.assertEqual(response.status_code, 200)

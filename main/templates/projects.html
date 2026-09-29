@@ -6,96 +6,188 @@
 {% endblock meta %}
 
 {% block content %}
-<main class="container">
-    <p class="section-kicker" style="margin-top: 32px;">Karya yang saya bangun</p>
-    
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h1 style="font-family: serif; font-size: 2.5rem; margin: 0;">Projects</h1>
-
+<main class="container projects-page">
+    <p class="section-kicker">Karya yang saya bangun</p>
+    <div class="project-header">
+        <h1>Projects</h1>
         {% if user.is_superuser %}
-            <a href="{% url 'main:create_project' %}" class="btn btn-dark">
-                + Tambah Proyek
-            </a>
+            <a href="{% url 'main:create_project' %}" class="btn btn-dark">+ Tambah Proyek</a>
         {% endif %}
     </div>
 
-    <!-- Form Pencarian -->
-    <form method="get"
-          action="{% url 'main:show_projects' %}"
-          style="margin-bottom: 32px; display: flex; gap: 12px;">
+    {% for message in messages %}
+        <p class="form-message" role="status">{{ message }}</p>
+    {% endfor %}
 
-        <input 
-            type="search" 
-            name="title" 
-            value="{{ title_query }}" 
-            placeholder="Cari berdasarkan nama proyek..." 
-            style="flex: 1; padding: 10px 16px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 0.95rem; outline: none;" 
-            aria-label="Cari berdasarkan nama proyek"
-        >
-
-        <button type="submit" class="btn btn-dark">
-            Cari
-        </button>
+    <form id="project-search-form" class="project-search">
+        <input type="search" id="search-input" name="title" value="{{ title_query }}"
+               placeholder="Cari berdasarkan nama proyek..." aria-label="Cari berdasarkan nama proyek">
+        <button type="submit" class="btn btn-dark">Cari</button>
     </form>
 
-    {% if project_list %}
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
-            
-            {% for project in project_list %}
-                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;">
-                    
-                    <div>
-                        <h3 style="font-family: serif; font-size: 1.5rem; margin-top: 0; margin-bottom: 12px; color: #1a202c;">
-                            {{ project.title }}
-                        </h3>
-
-                        <p style="color: #4a5568; font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px;">
-                            {{ project.description }}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p style="font-size: 0.85rem; color: #718096; margin-bottom: 16px; background: #f7fafc; padding: 8px 12px; border-radius: 8px; display: inline-block;">
-                            <strong>Tech Stack:</strong> {{ project.tech_stack }}
-                        </p>
-
-                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                            
-                            {% if project.project_url %}
-                                <a href="{{ project.project_url }}"
-                                   target="_blank"
-                                   rel="noopener noreferrer"
-                                   class="btn btn-outline"
-                                   style="padding: 8px 14px; font-size: 0.85rem;">
-                                    Lihat Project &rarr;
-                                </a>
-                            {% endif %}
-                            {% include "components/project_star.html" with project=project %}
-
-                            {% if user.is_superuser %}
-                                {% include "project_delete_modal.html" with project=project %}
-                            {% endif %}
-
-                        </div>
-                    </div>
-
-                </div>
-            {% endfor %}
-
+    <div id="project-results" aria-live="polite" aria-busy="true">
+        <div id="loading" class="empty-state"><p>Memuat projects...</p></div>
+        <div id="error" class="empty-state hide" role="alert">
+            <p>Gagal memuat data projects. Silakan coba lagi.</p>
+            <button type="button" id="retry-projects" class="button">Coba lagi</button>
         </div>
-
-    {% else %}
-
-        {% if title_query %}
-            <p style="color: #718096;">
-                Tidak ada proyek dengan nama tersebut.
-            </p>
-        {% else %}
-            <p style="color: #718096;">
-                Belum ada proyek yang ditambahkan.
-            </p>
-        {% endif %}
-
-    {% endif %}
+        <div id="empty" class="empty-state hide"><p>Belum ada proyek yang ditambahkan.</p></div>
+        <div id="grid" class="project-grid hide"></div>
+    </div>
+    <noscript><p>Aktifkan JavaScript untuk memuat dan mencari proyek.</p></noscript>
+    <template id="project-csrf-token">{% csrf_token %}</template>
 </main>
+
+<script>
+    const BASE_PROJECTS_ENDPOINT = "{% url 'main:get_projects_json' %}";
+    const IS_SUPERUSER = "{{ user.is_superuser|yesno:'true,false' }}" === "true";
+    const DUMMY_UUID = '00000000-0000-0000-0000-000000000000';
+    const STAR_URL = "{% url 'main:toggle_star' '00000000-0000-0000-0000-000000000000' %}";
+    const DELETE_URL = "{% url 'main:delete_project' '00000000-0000-0000-0000-000000000000' %}";
+    const SEARCH_DEBOUNCE_DELAY = 300;
+    let projectsAbortController;
+    let searchDebounceTimer;
+
+    const loadingState = document.getElementById('loading');
+    const errorState = document.getElementById('error');
+    const emptyState = document.getElementById('empty');
+    const gridContainer = document.getElementById('grid');
+    const searchForm = document.getElementById('project-search-form');
+    const searchInput = document.getElementById('search-input');
+
+    function displayPageSection({showLoading = false, showError = false, showEmpty = false, showGrid = false}) {
+        loadingState.classList.toggle('hide', !showLoading);
+        errorState.classList.toggle('hide', !showError);
+        emptyState.classList.toggle('hide', !showEmpty);
+        gridContainer.classList.toggle('hide', !showGrid);
+        document.getElementById('project-results').setAttribute('aria-busy', String(showLoading));
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+    }
+
+    function projectPostForm(url, className) {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = url;
+        form.className = className;
+        form.appendChild(document.getElementById('project-csrf-token').content.firstElementChild.cloneNode(true));
+        return form;
+    }
+
+    function buildProjectCardElement(item) {
+        const project = item.fields;
+        const projectId = String(item.pk);
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
+            throw new Error('Invalid project identifier');
+        }
+        const article = document.createElement('article');
+        article.className = 'project-card';
+        article.dataset.projectId = projectId;
+        // JSON text needs escaping: Django's template autoescaping does not run here.
+        article.innerHTML = `
+            <div>
+                <h2>${escapeHtml(project.title)}</h2>
+                <p class="project-description">${escapeHtml(project.description)}</p>
+            </div>
+            <div>
+                <p class="project-tech"><strong>Tech Stack:</strong> ${escapeHtml(project.tech_stack)}</p>
+                <div class="project-actions"></div>
+            </div>`;
+        const actions = article.querySelector('.project-actions');
+        if (project.project_url) {
+            // Also protect old/admin-inserted data, which may not have used ProjectForm.
+            try {
+                const url = new URL(project.project_url);
+                if (['http:', 'https:'].includes(url.protocol)) {
+                    const link = document.createElement('a');
+                    link.href = url.href;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.className = 'btn btn-outline';
+                    link.textContent = 'Lihat Project →';
+                    actions.appendChild(link);
+                }
+            } catch (_) { /* Omit malformed URLs without affecting the rest of the card. */ }
+        }
+
+        const starForm = projectPostForm(STAR_URL.replace(DUMMY_UUID, projectId), 'star-form');
+        const starButton = document.createElement('button');
+        starButton.type = 'submit';
+        const isStarred = project.is_starred === true;
+        const count = Number.isSafeInteger(project.star_count) && project.star_count >= 0 ? project.star_count : 0;
+        starButton.className = 'button button-star' + (isStarred ? ' is-starred' : '');
+        starButton.title = count > 0 ? `Dibintangi oleh ${project.starred_by_names}` : 'Jadilah yang pertama memberi star';
+        starButton.setAttribute('aria-pressed', String(isStarred));
+        starButton.textContent = isStarred ? '★ Unstar ' : '★ Star ';
+        const starCount = document.createElement('span');
+        starCount.className = 'star-count';
+        starCount.textContent = count;
+        starButton.appendChild(starCount);
+        starForm.appendChild(starButton);
+        actions.appendChild(starForm);
+
+        if (IS_SUPERUSER) {
+            const deleteForm = projectPostForm(DELETE_URL.replace(DUMMY_UUID, projectId), 'project-delete-form');
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'submit';
+            deleteButton.className = 'button button-danger';
+            deleteButton.textContent = 'Hapus';
+            deleteForm.appendChild(deleteButton);
+            deleteForm.addEventListener('submit', event => {
+                if (!confirm('Yakin ingin menghapus project ini?')) event.preventDefault();
+            });
+            actions.appendChild(deleteForm);
+        }
+        return article;
+    }
+
+    async function fetchProjects(searchQuery = '') {
+        if (projectsAbortController) projectsAbortController.abort();
+        const controller = new AbortController();
+        projectsAbortController = controller;
+        displayPageSection({showLoading: true});
+        try {
+            const url = new URL(BASE_PROJECTS_ENDPOINT, window.location.origin);
+            if (searchQuery) url.searchParams.set('title', searchQuery);
+            const response = await fetch(url, {
+                headers: {'Accept': 'application/json'},
+                signal: controller.signal,
+            });
+            if (!response.ok) throw new Error(`Failed to fetch projects (${response.status})`);
+            const data = await response.json();
+            if (controller.signal.aborted || controller !== projectsAbortController) return;
+            if (!Array.isArray(data)) throw new Error('Invalid project response');
+            const cards = data.map(buildProjectCardElement);
+            gridContainer.replaceChildren(...cards);
+            emptyState.querySelector('p').textContent = searchQuery
+                ? 'Tidak ada proyek dengan nama tersebut.' : 'Belum ada proyek yang ditambahkan.';
+            displayPageSection({showEmpty: cards.length === 0, showGrid: cards.length > 0});
+        } catch (error) {
+            if (error.name === 'AbortError' || controller.signal.aborted) return;
+            console.error('Error loading projects:', error);
+            displayPageSection({showError: true});
+        }
+    }
+
+    function searchProjects() {
+        return fetchProjects(searchInput.value.trim());
+    }
+
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchDebounceTimer);
+        if (projectsAbortController) projectsAbortController.abort();
+        searchDebounceTimer = setTimeout(searchProjects, SEARCH_DEBOUNCE_DELAY);
+    });
+    searchForm.addEventListener('submit', event => {
+        event.preventDefault();
+        clearTimeout(searchDebounceTimer);
+        searchProjects();
+    });
+    document.getElementById('retry-projects').addEventListener('click', searchProjects);
+    fetchProjects(searchInput.value.trim());
+</script>
 {% endblock content %}

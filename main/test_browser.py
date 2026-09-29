@@ -60,3 +60,142 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         self.browser.execute_script("document.getElementById('toast-component').remove(); showToast('Missing', 'Safe')")
         errors = [entry for entry in self.browser.get_log('browser') if entry['source'] == 'javascript' and entry['level'] == 'SEVERE']
         self.assertEqual(errors, [])
+
+    def seed_project(self, title='Django Portfolio', **kwargs):
+        from main.models import Project
+        return Project.objects.create(title=title, description=kwargs.get('description', 'A project'),
+                                      tech_stack=kwargs.get('tech_stack', 'Django'),
+                                      project_url=kwargs.get('project_url', 'https://example.com/'))
+
+    def open_projects(self, query=''):
+        self.browser.get(self.live_server_url + '/projects/' + query)
+        self.wait.until(lambda d: d.find_element('id', 'project-results').get_attribute('aria-busy') == 'false')
+
+    def assert_no_js_errors(self):
+        errors = [entry for entry in self.browser.get_log('browser') if entry['source'] == 'javascript' and entry['level'] == 'SEVERE']
+        self.assertEqual(errors, [])
+
+    def test_ajax_load_search_debounce_and_submit_without_reload(self):
+        self.seed_project()
+        self.seed_project('Other project')
+        self.open_projects()
+        self.assertEqual(len(self.browser.find_elements('css selector', '#grid article')), 2)
+        self.assertEqual(self.browser.find_elements('css selector', '.project-delete-form'), [])
+        self.browser.execute_script("""
+            window.pageMarker = 'same-document';
+            window.projectRequests = [];
+            const originalFetch = window.fetch;
+            window.fetch = (...args) => {
+                projectRequests.push(String(args[0]));
+                return originalFetch(...args);
+            };
+            const input = document.getElementById('search-input');
+            for (const value of ['D', 'Dj', 'Django']) {
+                input.value = value;
+                input.dispatchEvent(new Event('input', {bubbles: true}));
+            }
+        """)
+        self.assertEqual(self.browser.execute_script('return projectRequests.length'), 0)
+        self.wait.until(lambda d: len(d.find_elements('css selector', '#grid article')) == 1)
+        self.assertEqual(self.browser.execute_script('return projectRequests.length'), 1)
+        self.assertIn('title=Django', self.browser.execute_script('return projectRequests[0]'))
+        self.browser.execute_script("""
+            const input = document.getElementById('search-input');
+            input.value = 'missing';
+            input.dispatchEvent(new Event('input', {bubbles: true}));
+            document.getElementById('project-search-form').requestSubmit();
+        """)
+        self.wait.until(lambda d: d.find_element('id', 'empty').is_displayed())
+        time.sleep(0.4)  # Confirm the cancelled debounce does not send a duplicate request.
+        self.assertEqual(self.browser.execute_script('return projectRequests.length'), 2)
+        self.assertEqual(self.browser.execute_script('return pageMarker'), 'same-document')
+        self.assert_no_js_errors()
+
+    def test_loading_empty_error_retry_and_stale_response(self):
+        self.seed_project()
+        self.open_projects()
+        self.browser.execute_script("""
+            window.originalFetch = window.fetch;
+            window.fetch = () => Promise.resolve({ok: false, status: 503});
+            fetchProjects();
+        """)
+        self.wait.until(lambda d: d.find_element('id', 'error').is_displayed())
+        # The deliberately simulated failure is logged; clear it before checking recovery.
+        self.browser.get_log('browser')
+        self.browser.execute_script('window.fetch = window.originalFetch')
+        self.browser.find_element('id', 'retry-projects').click()
+        self.wait.until(lambda d: d.find_element('id', 'grid').is_displayed())
+        self.browser.execute_script("""
+            window.pendingFetches = [];
+            window.fetch = () => new Promise(resolve => pendingFetches.push(resolve));
+            fetchProjects('old');
+        """)
+        self.assertTrue(self.browser.find_element('id', 'loading').is_displayed())
+        self.browser.execute_script("""
+            fetchProjects('new');
+            pendingFetches[1]({ok: true, json: async () => []});
+        """)
+        self.wait.until(lambda d: d.find_element('id', 'empty').is_displayed())
+        self.browser.execute_script("""
+            pendingFetches[0]({ok: true, json: async () => [{pk: '00000000-0000-0000-0000-000000000001', fields: {title: 'STALE'}}]});
+        """)
+        time.sleep(0.2)
+        self.assertTrue(self.browser.find_element('id', 'empty').is_displayed())
+        self.assertEqual(self.browser.find_elements('css selector', '#grid article'), [])
+        self.assert_no_js_errors()
+
+    def test_stored_xss_is_literal_and_unsafe_url_is_omitted(self):
+        from django.contrib.auth.models import User
+        payload = '<img src="x" onerror="alert(\'XSS!\')">'
+        project = self.seed_project(payload, description=payload, tech_stack=payload, project_url='javascript:alert(1)')
+        user = User.objects.create_user('" onmouseover="alert(1)')
+        project.starred_by.add(user)
+        self.open_projects()
+        self.assertIn(payload, self.browser.find_element('css selector', '#grid h2').text)
+        self.assertEqual(self.browser.find_elements('css selector', '#grid img, #grid script, #grid a'), [])
+        button = self.browser.find_element('css selector', '#grid .button-star')
+        self.assertEqual(button.get_attribute('title'), 'Dibintangi oleh ' + user.username)
+        self.assertIsNone(button.get_attribute('onmouseover'))
+        self.assertEqual(button.find_element('class name', 'star-count').text, '1')
+        # An unexpected JS alert fails WebDriver commands, so reaching here verifies no execution.
+        self.assert_no_js_errors()
+
+    def login_browser(self, superuser=False):
+        from django.contrib.auth.models import User
+        from django.utils.crypto import get_random_string
+        password = get_random_string(24)
+        user = User.objects.create_user('browser-owner' if superuser else 'browser-reader',
+                                        password=password, is_superuser=superuser, is_staff=superuser)
+        self.browser.get(self.live_server_url + '/login/')
+        self.browser.find_element('name', 'username').send_keys(user.username)
+        self.browser.find_element('name', 'password').send_keys(password)
+        self.browser.find_element('css selector', '.project-form button[type=submit]').click()
+        self.wait.until(lambda d: d.current_url == self.live_server_url + '/')
+        return user
+
+    def test_anonymous_star_redirect_and_authenticated_star_delete(self):
+        from main.models import Project
+        project = self.seed_project()
+        self.open_projects()
+        self.browser.find_element('css selector', '#grid .button-star').click()
+        self.wait.until(lambda d: '/login/?next=' in d.current_url)
+        self.login_browser()
+        self.open_projects()
+        self.assertEqual(self.browser.find_elements('css selector', '.project-delete-form'), [])
+        self.browser.find_element('css selector', '#grid .button-star').click()
+        self.wait.until(lambda d: 'Unstar' in d.find_element('css selector', '#grid .button-star').text)
+        self.assertEqual(project.starred_by.count(), 1)
+        self.browser.find_element('css selector', '#grid .button-star').click()
+        self.wait.until(lambda d: d.find_element('css selector', '#grid .star-count').text == '0')
+        self.browser.find_element('css selector', '.logout-form button').click()
+        self.wait.until(lambda d: not d.find_elements('css selector', '.nav-user'))
+        self.login_browser(superuser=True)
+        self.open_projects()
+        self.browser.find_element('css selector', '.project-delete-form button').click()
+        self.browser.switch_to.alert.dismiss()
+        self.assertTrue(Project.objects.filter(pk=project.pk).exists())
+        self.browser.find_element('css selector', '.project-delete-form button').click()
+        self.browser.switch_to.alert.accept()
+        self.wait.until(lambda d: d.find_element('id', 'empty').is_displayed())
+        self.assertFalse(Project.objects.filter(pk=project.pk).exists())
+        self.assert_no_js_errors()
