@@ -433,3 +433,80 @@ class ProjectAjaxReadTests(TestCase):
             else:
                 self.assertNotContains(response, 'id="add-project-modal"')
                 self.assertNotContains(response, 'id="project-form"')
+
+
+class ProjectAjaxCreateTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth.models import Group, User
+        cls.reader = User.objects.create_user('create-reader')
+        cls.editor = User.objects.create_user('create-editor')
+        cls.editor.groups.add(Group.objects.create(name='Editor'))
+        cls.owner = User.objects.create_superuser('create-owner')
+        cls.payload = {'title': 'New project', 'description': 'Details', 'tech_stack': 'Django', 'project_url': 'https://example.com/'}
+        cls.url = reverse('main:create_project_ajax')
+
+    def test_only_superuser_can_create_and_get_is_405(self):
+        for user in [None, self.reader, self.editor, self.owner]:
+            self.client.logout()
+            if user:
+                self.client.force_login(user)
+            self.assertEqual(self.client.get(self.url).status_code, 405)
+            response = self.client.post(self.url, self.payload)
+            if user == self.owner:
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(Project.objects.get(pk=response.json()['pk']).title, self.payload['title'])
+            else:
+                self.assertEqual(response.status_code, 403)
+                self.assertEqual(response.headers['Content-Type'], 'application/json')
+                self.assertIn('message', response.json())
+                self.assertEqual(Project.objects.count(), 0)
+        self.assertEqual(Project.objects.count(), 1)
+
+    def test_invalid_input_returns_errors_and_creates_nothing(self):
+        self.client.force_login(self.owner)
+        cases = [('title', '   '), ('title', '<img src="x" onerror="alert(\'XSS!\')">'),
+                 ('title', 'x' * 256), ('project_url', 'javascript:alert(1)'),
+                 ('project_url', 'data:text/html,<script>alert(1)</script>'),
+                 ('tech_stack', '<b></b>'), ('description', '<p></p>')]
+        for field, value in cases:
+            with self.subTest(field=field, value=value):
+                response = self.client.post(self.url, {**self.payload, field: value})
+                self.assertEqual(response.status_code, 400)
+                self.assertIn(field, response.json()['errors'])
+                self.assertIn('message', response.json()['errors'][field][0])
+        self.assertEqual(Project.objects.count(), 0)
+
+    def test_both_creation_flows_share_sanitization_and_url_validation(self):
+        self.client.force_login(self.owner)
+        for url, status in [(self.url, 201), (reverse('main:create_project'), 302)]:
+            existing_ids = set(Project.objects.values_list('pk', flat=True))
+            response = self.client.post(url, {**self.payload, 'title': ' <b>Clean</b> ',
+                                             'description': '<p>Details</p>', 'tech_stack': ' <i>Django</i> '})
+            self.assertEqual(response.status_code, status)
+            project = Project.objects.exclude(pk__in=existing_ids).get()
+            self.assertEqual(project.title, 'Clean')
+            self.assertEqual(project.description, 'Details')
+            self.assertEqual(project.tech_stack, 'Django')
+            before = Project.objects.count()
+            response = self.client.post(url, {**self.payload, 'project_url': 'javascript:alert(1)'})
+            self.assertEqual(response.status_code, 400 if url == self.url else 200)
+            self.assertEqual(Project.objects.count(), before)
+
+    def test_ajax_csrf_header_is_required_and_sufficient(self):
+        from django.test import Client
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.owner)
+        client.get('/projects/')
+        token = client.cookies['csrftoken'].value
+        self.assertEqual(client.post(self.url, self.payload).status_code, 403)
+        self.assertEqual(client.post(self.url, self.payload, HTTP_X_CSRFTOKEN='invalid').status_code, 403)
+        self.assertEqual(Project.objects.count(), 0)
+        response = client.post(self.url, self.payload, HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 201)
+        client.logout()
+        client.get('/projects/')
+        response = client.post(self.url, self.payload, HTTP_X_CSRFTOKEN=client.cookies['csrftoken'].value)
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('message', response.json())
+        self.assertEqual(Project.objects.count(), 1)

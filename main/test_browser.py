@@ -230,3 +230,119 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         finally:
             self.browser.execute_cdp_cmd('Emulation.clearDeviceMetricsOverride', {})
         self.assert_no_js_errors()
+
+    def open_create_form(self, title='Django Created', project_url='https://example.com/'):
+        self.browser.find_element('class name', 'project-add-button').click()
+        self.wait.until(lambda d: d.switch_to.active_element.get_attribute('name') == 'title')
+        for name, value in {'title': title, 'description': 'A new project', 'tech_stack': 'Django', 'project_url': project_url}.items():
+            field = self.browser.find_element('css selector', f'#project-form [name="{name}"]')
+            field.clear()
+            field.send_keys(value)
+
+    def screenshot(self, filename):
+        from pathlib import Path
+        directory = os.environ.get('BROWSER_SCREENSHOT_DIR')
+        if directory:
+            Path(directory).mkdir(parents=True, exist_ok=True)
+            self.browser.save_screenshot(str(Path(directory) / filename))
+
+    def test_ajax_create_network_csrf_toast_and_filter_without_reload(self):
+        import json
+        from main.models import Project
+        self.seed_project('Other project')
+        self.login_browser(superuser=True)
+        self.open_projects('?title=Django')
+        self.assertTrue(self.browser.find_element('id', 'empty').is_displayed())
+        self.browser.execute_script("window.pageMarker = 'same-document'")
+        self.open_create_form()
+        self.screenshot('modal-desktop.png')
+        self.browser.get_log('performance')
+        self.browser.find_element('css selector', '#project-form button[type=submit]').click()
+        self.wait.until(lambda d: not d.find_element('id', 'add-project-modal').is_displayed())
+        self.wait.until(lambda d: len(d.find_elements('css selector', '#grid article')) == 1)
+        self.wait.until(lambda d: d.find_element('id', 'toast-title').text == 'Berhasil')
+        self.assertEqual(self.browser.execute_script('return pageMarker'), 'same-document')
+        self.assertEqual(self.browser.find_element('id', 'search-input').get_attribute('value'), 'Django')
+        self.assertEqual(self.browser.find_element('css selector', '#grid h2').text, 'Django Created')
+        self.assertEqual(Project.objects.count(), 2)
+        self.assertEqual(self.browser.find_element('css selector', '#project-form [name=title]').get_attribute('value'), '')
+        events = [json.loads(entry['message'])['message'] for entry in self.browser.get_log('performance')]
+        requests = [event['params']['request'] for event in events if event['method'] == 'Network.requestWillBeSent']
+        responses = [event['params']['response'] for event in events if event['method'] == 'Network.responseReceived']
+        self.assertTrue(any(request['method'] == 'POST' and '/projects/add-ajax/' in request['url'] and
+                            any(key.lower() == 'x-csrftoken' and bool(value) for key, value in request['headers'].items())
+                            for request in requests))
+        self.assertTrue(any('/projects/add-ajax/' in response['url'] and response['status'] == 201 for response in responses))
+        self.assertTrue(any('/api/projects/?title=Django' in response['url'] and response['status'] == 200 for response in responses))
+        self.screenshot('projects-success.png')
+        # A created item that does not match the filter must not appear in the filtered grid.
+        self.open_create_form(title='Unrelated created')
+        self.browser.find_element('css selector', '#project-form button[type=submit]').click()
+        self.wait.until(lambda d: not d.find_element('id', 'add-project-modal').is_displayed())
+        self.wait.until(lambda d: d.find_element('id', 'project-results').get_attribute('aria-busy') == 'false')
+        self.assertEqual(len(self.browser.find_elements('css selector', '#grid article')), 1)
+        self.assertEqual(Project.objects.count(), 3)
+        self.assert_no_js_errors()
+
+    def test_invalid_ajax_create_keeps_modal_and_displays_server_errors(self):
+        import json
+        from main.models import Project
+        self.login_browser(superuser=True)
+        self.open_projects()
+        self.open_create_form(title='   ')
+        self.browser.get_log('performance')
+        self.browser.find_element('css selector', '#project-form button[type=submit]').click()
+        self.wait.until(lambda d: d.find_element('id', 'toast-title').text == 'Gagal menambahkan proyek')
+        self.assertTrue(self.browser.find_element('id', 'add-project-modal').is_displayed())
+        self.assertEqual(Project.objects.count(), 0)
+        self.assertTrue(self.browser.find_element('css selector', '#project-form button[type=submit]').is_enabled())
+        events = [json.loads(entry['message'])['message'] for entry in self.browser.get_log('performance')]
+        self.assertTrue(any(event['method'] == 'Network.responseReceived' and
+                            event['params']['response']['status'] == 400 for event in events))
+        for title, url, expected in [
+            ('Valid title', 'javascript:alert(1)', 'Enter a valid URL.'),
+            ('<img src="x" onerror="alert(\'XSS!\')">', 'https://example.com/', 'Nama proyek tidak boleh'),
+        ]:
+            for name, value in [('title', title), ('project_url', url)]:
+                field = self.browser.find_element('css selector', f'#project-form [name={name}]')
+                field.clear()
+                field.send_keys(value)
+            self.browser.find_element('css selector', '#project-form button[type=submit]').click()
+            self.wait.until(lambda d: expected in d.find_element('id', 'toast-message').text)
+            self.assertEqual(Project.objects.count(), 0)
+        self.screenshot('modal-validation.png')
+        self.browser.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {'width': 390, 'height': 844, 'deviceScaleFactor': 1, 'mobile': True})
+        try:
+            self.screenshot('modal-mobile.png')
+        finally:
+            self.browser.execute_cdp_cmd('Emulation.clearDeviceMetricsOverride', {})
+        self.assert_no_js_errors()
+
+    def test_create_handles_duplicate_submit_html_error_offline_and_expired_session(self):
+        from main.models import Project
+        self.login_browser(superuser=True)
+        self.open_projects()
+        self.open_create_form()
+        self.browser.execute_script("""
+            window.originalFetch = window.fetch;
+            window.createRequestCount = 0;
+            window.fetch = () => { createRequestCount++; return new Promise(resolve => {window.resolveCreate = resolve;}); };
+            document.getElementById('project-form').requestSubmit();
+            document.getElementById('project-form').requestSubmit();
+        """)
+        self.assertEqual(self.browser.execute_script('return createRequestCount'), 1)
+        self.assertFalse(self.browser.find_element('css selector', '#project-form button[type=submit]').is_enabled())
+        self.browser.execute_script("resolveCreate({ok: false, status: 403, json: async () => {throw new Error('HTML response');}})")
+        self.wait.until(lambda d: 'status 403' in d.find_element('id', 'toast-message').text)
+        self.assertTrue(self.browser.find_element('css selector', '#project-form button[type=submit]').is_enabled())
+        self.browser.execute_script("window.fetch = () => Promise.reject(new TypeError('Simulated offline'))")
+        self.browser.find_element('css selector', '#project-form button[type=submit]').click()
+        self.wait.until(lambda d: 'Tidak dapat terhubung' in d.find_element('id', 'toast-message').text)
+        self.assertTrue(self.browser.find_element('css selector', '#project-form button[type=submit]').is_enabled())
+        self.browser.execute_script('window.fetch = window.originalFetch')
+        self.browser.delete_cookie('sessionid')
+        self.browser.find_element('css selector', '#project-form button[type=submit]').click()
+        self.wait.until(lambda d: 'Hanya pemilik' in d.find_element('id', 'toast-message').text)
+        self.assertTrue(self.browser.find_element('id', 'add-project-modal').is_displayed())
+        self.assertEqual(Project.objects.count(), 0)
+        self.assert_no_js_errors()
