@@ -1346,3 +1346,34 @@ p {
 .experience-card .btn-outline { color: var(--white); background: transparent; }
 .experience-card .btn-outline:hover { color: var(--text); background: var(--white); }
 button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+/* Reusable notifications in the browser's popover top layer. */
+.toast-component {
+    position: fixed;
+    inset: auto 2rem 2rem auto;
+    margin: 0;
+    padding: 1rem 1.5rem;
+    width: min(420px, calc(100vw - 2rem));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--white);
+    color: var(--text);
+    box-shadow: var(--shadow);
+    display: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    overflow-wrap: anywhere;
+}
+.toast-component:popover-open { display: flex; }
+.toast-hidden { opacity: 0; transform: translateY(150%); pointer-events: none; }
+.toast-show { opacity: 1; transform: translateY(0); }
+.toast-title { font-family: inherit; font-size: 1rem; margin-bottom: 0.15rem; }
+.toast-message { font-size: 0.85rem; color: var(--text-soft); }
+.toast-success { border-left: 4px solid #2f7554; }
+.toast-error { border-left: 4px solid #b42318; }
+.toast-normal { border-left: 4px solid var(--burgundy); }
+@media (max-width: 600px) {
+    .toast-component { right: 1rem; bottom: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .toast-component { transition: none; }
+}
