@@ -361,6 +361,10 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
                     self.wait.until(lambda d: d.find_element('id', 'project-results').get_attribute('aria-busy') == 'false')
                 self.assertTrue(self.browser.execute_script('return document.documentElement.scrollWidth <= innerWidth'), (width, route))
                 if route == '/':
+                    for section_id in ['about', 'education', 'skills', 'profile']:
+                        self.browser.execute_script("document.getElementById(arguments[0]).scrollIntoView({behavior:'instant'})", section_id)
+                        expected = 'Home' if section_id == 'profile' else section_id.title()
+                        self.wait.until(lambda d: d.find_element('css selector', '.nav-links [aria-current]').text == expected)
                     photos = self.browser.find_elements('css selector', '.memory-image img')
                     self.assertEqual(len(photos), 11)
                     for photo in photos:
