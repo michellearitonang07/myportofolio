@@ -185,7 +185,7 @@ button,a,input,textarea,select { -webkit-tap-highlight-color:transparent; }
 .hero h1 { font-size:clamp(3.2rem,5.5vw,5.4rem); line-height:1.04; }
 .hero h1 em { display:block; color:var(--berry); font-size:.78em; font-weight:400; margin-top:.2em; }
 .hero-statement { max-width:440px; margin-top:1.7rem; color:var(--taupe); font-size:1.05rem; }
-.hero-visual { position:relative; padding:1.5rem 1rem 3rem; }
+.hero-visual { position:relative; padding:1.5rem 1rem 7rem; }
 .hero-visual::before { content:''; position:absolute; inset:8% 0 12% 8%; background:var(--berry); border-radius:45% 45% 8px 8px; transform:rotate(7deg); }
 .image-frame { position:relative; background:var(--white); padding:12px 12px 0; transform:rotate(-3deg); box-shadow:var(--shadow); }
 .image-frame img { width:100%; height:auto; }

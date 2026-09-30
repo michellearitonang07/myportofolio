@@ -26,11 +26,11 @@
             </a>
 
             <nav class="nav-links" aria-label="Main navigation">
-                <a href="{% url 'main:show_main' %}">Home</a>
+                <a href="{% url 'main:show_main' %}"{% if request.resolver_match.url_name == 'show_main' %} aria-current="page"{% endif %}>Home</a>
                 <a href="{% url 'main:show_main' %}#about">About</a>
                 <a href="{% url 'main:show_main' %}#education">Education</a>
-                <a href="{% url 'main:show_experience' %}">Experience</a>
-                <a href="{% url 'main:show_projects' %}">Projects</a>
+                <a href="{% url 'main:show_experience' %}"{% if request.resolver_match.url_name == 'show_experience' %} aria-current="page"{% endif %}>Experience</a>
+                <a href="{% url 'main:show_projects' %}"{% if request.resolver_match.url_name == 'show_projects' %} aria-current="page"{% endif %}>Projects</a>
                 <a href="{% url 'main:show_main' %}#skills">Skills</a>
 
                 {% if user.is_authenticated %}
@@ -40,8 +40,8 @@
                         <button type="submit" class="nav-logout">Logout</button>
                     </form>
                 {% else %}
-                    <a href="{% url 'main:login' %}">Login</a>
-                    <a href="{% url 'main:register' %}">Register</a>
+                    <a href="{% url 'main:login' %}"{% if request.resolver_match.url_name == 'login' %} aria-current="page"{% endif %}>Login</a>
+                    <a href="{% url 'main:register' %}"{% if request.resolver_match.url_name == 'register' %} aria-current="page"{% endif %}>Register</a>
                 {% endif %}
                 
             </nav>

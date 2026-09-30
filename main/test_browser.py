@@ -346,3 +346,38 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         self.assertTrue(self.browser.find_element('id', 'add-project-modal').is_displayed())
         self.assertEqual(Project.objects.count(), 0)
         self.assert_no_js_errors()
+
+    def test_editorial_pages_and_natural_photo_ratios_at_responsive_sizes(self):
+        from pathlib import Path
+        screenshot_dir = os.environ.get('BROWSER_SCREENSHOT_DIR')
+        self.seed_project()
+        for width, height in [(1440, 1000), (768, 1024), (390, 844)]:
+            self.browser.set_window_size(width, height)
+            self.browser.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {'width': width, 'height': height, 'deviceScaleFactor': 1, 'mobile': False})
+            self.assertEqual(self.browser.execute_script('return innerWidth'), width)
+            for route in ['/', '/experience/', '/projects/', '/login/', '/register/']:
+                self.browser.get(self.live_server_url + route)
+                if route == '/projects/':
+                    self.wait.until(lambda d: d.find_element('id', 'project-results').get_attribute('aria-busy') == 'false')
+                self.assertTrue(self.browser.execute_script('return document.documentElement.scrollWidth <= innerWidth'), (width, route))
+                if route == '/':
+                    photos = self.browser.find_elements('css selector', '.memory-image img')
+                    self.assertEqual(len(photos), 11)
+                    for photo in photos:
+                        self.browser.execute_script("arguments[0].scrollIntoView({block:'center',behavior:'instant'})", photo)
+                        self.wait.until(lambda d: d.execute_script('return arguments[0].complete && arguments[0].naturalWidth > 0', photo))
+                        ratios = self.browser.execute_script('return [arguments[0].clientWidth / arguments[0].clientHeight, arguments[0].naturalWidth / arguments[0].naturalHeight]', photo)
+                        self.assertAlmostEqual(*ratios, delta=.01)
+                    if screenshot_dir:
+                        Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
+                        self.browser.execute_script("document.getElementById('life').scrollIntoView({behavior:'instant'})")
+                        self.browser.execute_async_script("const done=arguments[arguments.length-1]; Promise.all([...document.querySelectorAll('.memory-image img')].map(img=>img.decode())).then(()=>requestAnimationFrame(()=>requestAnimationFrame(done)))")
+                        time.sleep(.2)  # Let Chrome paint decoded lazy images after scrolling.
+                        self.browser.save_screenshot(str(Path(screenshot_dir) / f'gallery-{width}.png'))
+                    self.browser.execute_script('window.scrollTo({top:0,behavior:"instant"})')
+                if screenshot_dir:
+                    Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
+                    self.browser.save_screenshot(str(Path(screenshot_dir) / f'{route.strip("/") or "home"}-{width}.png'))
+                self.assert_no_js_errors()
+        self.browser.execute_cdp_cmd('Emulation.clearDeviceMetricsOverride', {})
+        self.browser.set_window_size(1440, 1000)

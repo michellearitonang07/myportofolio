@@ -637,3 +637,53 @@ Milestone lokal: toast teruji; daftar/pencarian AJAX aman; modal teruji;
 create AJAX dengan pembersihan input bersama; dokumentasi dan QA akhir.
 Tidak ada push, deployment, atau submisi SCELE otomatis untuk Tutorial 05.
 Setelah puas meninjau hasil, pemilik dapat menjalankan `git push origin main`.
+
+## Warm editorial makeover
+
+The existing Django portfolio uses a cream, berry and terracotta editorial system,
+with shared buttons/forms, a layered homepage portrait, narrative experience
+cards, and a scrapbook gallery. Tutorial 5 AJAX handlers, permissions, CSRF,
+authentication and toast behavior remain in place.
+
+### Editing “Snapshots of My Life”
+
+The gallery uses **11 original local photos**, as requested in the latest update.
+Files remain `main/static/img/life/1.jpg` through `11.jpg`; no placeholders or
+external images are used. Images retain their natural proportions, including EXIF
+orientation. Click a photo to open the original. Images load lazily; the original
+files are intentionally unchanged, so larger photos may take longer to load.
+
+Edit **`main/life_snapshots.py`**. Every dictionary is identified by its `image`
+path (for example `img/life/5.jpg`). Independently edit:
+
+- `title`: heading below that photo.
+- `caption`: descriptive sentence below the title.
+- `category`: small label above the title.
+- `year`: optional year; currently blank because dates were not supplied.
+- `alt`: accessible description of the photograph.
+
+These fields apply individually to all eleven entries. Changing text never
+requires renaming a file. Generic initial captions are editable copy, not claims
+about particular personal events. The template is
+`main/templates/components/life_snapshots.html`; collage layout lives in the
+“Scrapbook spreads” section of `main/static/css/style.css`.
+
+### Local verification
+
+```sh
+python manage.py check
+python manage.py test --noinput
+RUN_BROWSER_TESTS=1 python manage.py test --noinput
+git diff --check
+```
+
+The opt-in Selenium suite requires Chrome and Selenium. It uses a temporary test
+database. It covers existing AJAX/auth/modal behavior plus all five public pages
+at desktop, tablet and mobile widths, horizontal overflow, eleven loaded photos,
+natural image ratios and JavaScript console errors. Set `BROWSER_SCREENSHOT_DIR`
+to save review screenshots outside the repository.
+
+In Chrome, review the hero, About/Education/Skills anchors and photo captions;
+resize the page; try Login/Register and POST Logout; then check search, modal
+keyboard focus, create, toast and star/unstar. Check normal-user, Editor and
+superuser controls separately. No deployment or push is part of this makeover.
