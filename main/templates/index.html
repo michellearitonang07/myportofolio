@@ -8,124 +8,41 @@
 {% block content %}
 <main>
 
-    <!-- =========================
-         HERO / PROFILE
-    ========================== -->
     <section class="hero" id="profile">
-
         <div class="container hero-grid">
-
             <div class="hero-content">
-
-                <p class="eyebrow">
-                    {{ study_program }} · Universitas Indonesia
-                </p>
-
-                <p class="hero-intro">
-                    Hello, I'm
-                </p>
-
-                <h1>
-                    {{ name }}
-                </h1>
-
-                <p class="hero-role">
-                    INFORMATION SYSTEMS STUDENT
-                </p>
-
-                <p class="bio" id="about">
-                    {{ bio }}
-                </p>
-
-                <div class="meta-grid">
-                    <div class="meta-item">
-                        <span class="meta-label">NPM</span>
-                        <span class="meta-value">{{ npm }}</span>
-                </div>
-
-                    <div class="meta-item">
-                        <span class="meta-label">Major</span>
-                        <span class="meta-value">{{ study_program }}</span>
-                    </div>
-
-                    <div class="meta-item">
-                        <span class="meta-label">Faculty</span>
-                        <span class="meta-value">Faculty of Computer Science</span>
-                    </div>
-
-                    <div class="meta-item">
-                        <span class="meta-label">University</span>
-                        <span class="meta-value">Universitas Indonesia</span>
-                    </div>
-
-                    <div class="meta-item">
-                        <span class="meta-label">Last Login</span>
-                        <span class="meta-value">{{ last_login }}</span>
-                    </div>
-
-                </div>
-
-                <!-- Social Links -->
+                <p class="eyebrow">{{ study_program }} · Universitas Indonesia</p>
+                <p class="hero-intro">Hello, I'm</p>
+                <h1>Michelle Yuyun <em>Margarethy Aritonang</em></h1>
+                <p class="hero-statement">Exploring the intersection of technology, people, business, and creative impact.</p>
                 <div class="social-links">
-
-                    <a
-                        href="https://github.com/michellearitonang07"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="btn btn-dark"
-                    >
-                        GitHub ↗
-                    </a>
-
-                    <a
-                        href="https://www.linkedin.com/in/michelle-aritonang/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="btn btn-outline"
-                    >
-                        LinkedIn ↗
-                    </a>
-
-                    <a
-                        href="mailto:michellearitonang16@gmail.com"
-                        class="btn btn-outline"
-                    >
-                        Email ↗
-                    </a>
-
+                    <a href="{% url 'main:show_projects' %}" class="btn btn-primary">View Projects ↗</a>
+                    <a href="{% url 'main:show_experience' %}" class="btn btn-outline">My Journey</a>
+                    <a href="#contact" class="btn btn-ghost">Contact Me ↘</a>
                 </div>
-
             </div>
-
-
-            <!-- Hero Visual -->
             <div class="hero-visual">
-
-                <div class="image-decoration"></div>
-
-                <div class="image-frame">
-                    <img
-                        src="{% static 'img/chelle.jpg' %}"
-                        alt="Portrait of Michelle"
-                        class="avatar"
-                    >
-                </div>
-
-                <div class="floating-note">
-                    <span>Currently exploring</span>
-                    <strong>Technology · Business · Projects</strong>
-                </div>
-
-                <div class="vertical-text">
-                    PORTFOLIO · 2026
-                </div>
-
+                <span class="hero-spark" aria-hidden="true">✳</span>
+                <figure class="image-frame"><img src="{% static 'img/chelle.jpg' %}" alt="Portrait of Michelle" fetchpriority="high"><figcaption>A work in progress, in the best way.</figcaption></figure>
+                <div class="floating-note"><span class="section-kicker">Currently exploring</span><p>Technology · Business<br>Design · Community</p></div>
             </div>
-
+            <div class="hero-footnote"><span>PERSONAL PORTFOLIO / 2026</span><a href="#about">A little more about me ↓</a></div>
         </div>
-
     </section>
-
+    <section class="content-section about-section" id="about">
+        <div class="container about-layout">
+            <div><p class="section-kicker">01 / A little introduction</p><h2>Curiosity is my<br><em>starting point.</em></h2><p class="about-bio">{{ bio }}</p>
+                <div class="social-links"><a href="https://github.com/michellearitonang07" target="_blank" rel="noopener noreferrer">GitHub ↗</a><a href="https://www.linkedin.com/in/michelle-aritonang/" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a></div>
+            </div>
+            <div class="meta-grid">
+                <div class="meta-item"><span class="meta-label">NPM</span><span class="meta-value">{{ npm }}</span></div>
+                <div class="meta-item"><span class="meta-label">Major</span><span class="meta-value">{{ study_program }}</span></div>
+                <div class="meta-item"><span class="meta-label">Faculty</span><span class="meta-value">Faculty of Computer Science</span></div>
+                <div class="meta-item"><span class="meta-label">University</span><span class="meta-value">Universitas Indonesia</span></div>
+                <div class="meta-item"><span class="meta-label">Last Login</span><span class="meta-value">{{ last_login }}</span></div>
+            </div>
+        </div>
+    </section>
 
     <!-- =========================
          EDUCATION
@@ -135,7 +52,7 @@
         <div class="container">
 
             <div class="section-title">
-                <span class="section-number">01</span>
+                <span class="section-number">02</span>
 
                 <div>
                     <p class="section-kicker">Academic Journey</p>
@@ -228,7 +145,7 @@
         <div class="container">
 
             <div class="section-title">
-                <span class="section-number">02</span>
+                <span class="section-number">03</span>
 
                 <div>
                     <p class="section-kicker">What I Work With</p>
@@ -358,7 +275,7 @@
     <!-- =========================
          CLOSING SECTION
     ========================== -->
-    <section class="closing-section">
+    <section class="closing-section" id="contact">
         <div class="container closing-content">
             <p class="section-kicker">Get In Touch</p>
             <h2>Let's connect and build together.</h2>
