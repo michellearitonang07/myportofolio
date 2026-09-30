@@ -7,14 +7,14 @@
 
 {% block content %}
 <main>
-    <section class="experience-section" id="experience" style="padding-top: 100px;">
+    <section class="experience-section" id="experience">
         <div class="container">
             <p class="section-kicker">Perjalanan saya sejauh ini</p>
             
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div class="page-heading">
                 <h1>Experience</h1>
                 {% if user.is_superuser %}
-                <a href="{% url 'main:create_experience' %}" class="btn btn-dark" style="text-decoration: none;">
+                <a href="{% url 'main:create_experience' %}" class="btn btn-dark">
                     + Tambah Pengalaman
                 </a>
                 {% endif %}
@@ -26,7 +26,7 @@
 
             <div class="experience-grid">
                 {% for experience in experience_list %}
-                    <article class="experience-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <article class="experience-card">
                         <div>
                             <span class="experience-category">
                                 {{ experience.get_category_display }}
@@ -36,24 +36,24 @@
                                 {{ experience.description }}
                             </p>
                             {% if experience.is_ongoing %}
-                                <p class="experience-status">Sedang berlangsung</p>
+                                <p class="experience-status is-ongoing">Sedang berlangsung</p>
                             {% else %}
                                 <p class="experience-status">Selesai</p>
                             {% endif %}
                         </div>
 
                         <!-- Server-side permissions remain enforced in the views. -->
-                        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px;">
+                        <div class="card-actions">
                             {% include "components/experience_star.html" with experience=experience %}
                             {% if user.is_superuser or is_editor %}
-                            <a href="{% url 'main:edit_experience' experience.id %}" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px; text-decoration: none;">
+                            <a href="{% url 'main:edit_experience' experience.id %}" class="btn btn-outline">
                                 Edit
                             </a>
                             {% endif %}
                             {% if user.is_superuser %}
-                            <form action="{% url 'main:delete_experience' experience.id %}" method="POST" style="display: inline;" onsubmit="return confirm('Apakah kamu yakin ingin menghapus pengalaman ini?');">
+                            <form action="{% url 'main:delete_experience' experience.id %}" method="POST" onsubmit="return confirm('Apakah kamu yakin ingin menghapus pengalaman ini?');">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px; color: #d9534f; border-color: #d9534f; cursor: pointer; background: transparent;">
+                                <button type="submit" class="btn btn-danger">
                                     Hapus
                                 </button>
                             </form>
