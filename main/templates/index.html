@@ -9,6 +9,7 @@
 <main>
 
     <section class="hero" id="profile">
+        <span class="hero-word" aria-hidden="true">CURIOUS</span>
         <div class="container hero-grid">
             <div class="hero-content">
                 <p class="eyebrow">{{ study_program }} · Universitas Indonesia</p>
@@ -18,7 +19,7 @@
                 <div class="social-links">
                     <a href="{% url 'main:show_projects' %}" class="btn btn-primary">View Projects ↗</a>
                     <a href="{% url 'main:show_experience' %}" class="btn btn-outline">My Journey</a>
-                    <a href="#contact" class="btn btn-ghost">Contact Me ↘</a>
+                    <a href="#contact" class="btn btn-ghost">Contact Me <span class="cta-arrow" aria-hidden="true">↘</span></a>
                 </div>
             </div>
             <div class="hero-visual">
@@ -40,6 +41,29 @@
                 <div class="meta-item"><span class="meta-label">Faculty</span><span class="meta-value">Faculty of Computer Science</span></div>
                 <div class="meta-item"><span class="meta-label">University</span><span class="meta-value">Universitas Indonesia</span></div>
                 <div class="meta-item"><span class="meta-label">Last Login</span><span class="meta-value">{{ last_login }}</span></div>
+            </div>
+        </div>
+    </section>
+
+    <div class="editorial-strip" aria-label="Technology, people, design, community, business, creativity">
+        <div class="editorial-strip__track" aria-hidden="true">
+            <span>TECHNOLOGY ✦ PEOPLE ✦ DESIGN ✦ COMMUNITY ✦ BUSINESS ✦ CREATIVITY ✦&nbsp;</span>
+            <span>TECHNOLOGY ✦ PEOPLE ✦ DESIGN ✦ COMMUNITY ✦ BUSINESS ✦ CREATIVITY ✦&nbsp;</span>
+        </div>
+        <button class="marquee-toggle" type="button" aria-pressed="false" hidden>Pause motion</button>
+    </div>
+    <section class="content-section journey-section" id="journey">
+        <div class="container journey-layout">
+            <div><p class="section-kicker">The journey / Still unfolding</p><h2>Learning by doing.<br><em>Growing with people.</em></h2></div>
+            <div><p>From software development and digital design to organizing events, I am exploring how ideas become something people can connect with.</p><a class="btn btn-secondary" href="{% url 'main:show_experience' %}">Explore my journey <span aria-hidden="true">↗</span></a></div>
+        </div>
+    </section>
+    <section class="currently-section" aria-labelledby="currently-title">
+        <div class="container"><p class="section-kicker" id="currently-title">Currently / A few things on my mind</p>
+            <div class="currently-grid">
+                <article><span>01 / Exploring</span><h3>Technology &amp; business</h3><p>Connecting ideas through Information Systems.</p></article>
+                <article><span>02 / Learning</span><h3>Digital foundations</h3><p>Python, Java, HTML, and CSS.</p></article>
+                <article><span>03 / Creating</span><h3>With a design mindset</h3><p>Working with Figma, Canva, and CapCut.</p></article>
             </div>
         </div>
     </section>
@@ -292,4 +316,5 @@
     </section>
 
 </main>
+<script src="{% static 'js/editorial.js' %}" defer></script>
 {% endblock content %}
