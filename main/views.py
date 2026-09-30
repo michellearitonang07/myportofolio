@@ -13,6 +13,7 @@ from django.views.decorators.cache import never_cache
 
 from main.forms import ExperienceForm, ProjectForm
 from main.models import Experience, Project
+from main.life_snapshots import LIFE_SNAPSHOTS
 
 
 # --- HELPER ROLE ---
@@ -93,6 +94,7 @@ def show_main(request):
             "Enthusiastic about organizing events, building tech solutions, and driving impact."
         ),
         "last_login": last_login,
+        "life_snapshots": LIFE_SNAPSHOTS,
     }
 
     return render(request, "index.html", context)

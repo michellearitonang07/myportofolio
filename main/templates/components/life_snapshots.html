@@ -1,0 +1,14 @@
+{% load static %}
+<section class="content-section life-section" id="life" aria-labelledby="life-title">
+    <div class="container">
+        <div class="life-heading"><div><p class="section-kicker">04 / Beyond the screen</p><h2 id="life-title">Snapshots of <em>My Life</em></h2></div><p>People, places, and little moments.<br>A few pages from my personal album.</p></div>
+        <div class="life-collage">
+            {% for photo in life_snapshots %}
+            <figure class="memory-card memory-card--{{ forloop.counter }}">
+                <a class="memory-image" href="{% static photo.image %}" target="_blank" rel="noopener noreferrer" aria-label="View full photo: {{ photo.title }} (new tab)"><img src="{% static photo.image %}" alt="{{ photo.alt }}" loading="lazy" decoding="async"></a>
+                <figcaption><p class="memory-meta">{{ photo.category }}{% if photo.year %} · {{ photo.year }}{% endif %}<span>{{ forloop.counter|stringformat:"02d" }}</span></p><h3>{{ photo.title }}</h3><p class="memory-caption">{{ photo.caption }}</p></figcaption>
+            </figure>
+            {% endfor %}
+        </div>
+    </div>
+</section>
