@@ -104,19 +104,11 @@ def show_main(request):
 # --- EXPERIENCE VIEWS ---
 
 def show_experience(request):
-    raw_data = Experience.objects.all()
-
-    data_json = serializers.serialize("json", raw_data)
-
-    experience_list = [
-        item.object
-        for item in serializers.deserialize("json", data_json)
-    ]
-
     context = {
         "name": "Michelle Yuyun Margarethy Aritonang",
-        "experience_list": experience_list,
         "is_editor": is_editor(request.user),
+        "title_query": request.GET.get("title", "").strip(),
+        "form": ExperienceForm(),
     }
 
     return render(request, "experience.html", context)

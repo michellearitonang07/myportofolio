@@ -36,10 +36,14 @@ class MainTest(TestCase):
         response = self.client.get(reverse("main:show_experience"))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "experience.html")
-        self.assertContains(response, self.experience.title)
-        self.assertContains(response, self.experience.description)
-        self.assertContains(response, "Volunteer")
-        self.assertContains(response, "Sedang berlangsung")
+        self.assertNotContains(response, self.experience.title)
+        self.assertNotIn("experience_list", response.context)
+        self.assertContains(response, 'id="experience-grid"')
+        fields = self.client.get(reverse("main:get_experiences_ajax")).json()[0]['fields']
+        self.assertEqual(fields['title'], self.experience.title)
+        self.assertEqual(fields['description'], self.experience.description)
+        self.assertEqual(fields['category_label'], "Relawan")
+        self.assertTrue(fields['is_ongoing'])
         self.assertContains(response, f'href="{reverse("main:show_main")}"')
 
     def test_empty_experience_page(self):
@@ -52,8 +56,9 @@ class MainTest(TestCase):
         self.experience.save()
         response = self.client.get(reverse("main:show_experience"))
         self.assertFalse(self.experience.is_ongoing)
-        self.assertContains(response, "Selesai")
-        self.assertNotContains(response, "Sedang berlangsung")
+        fields = self.client.get(reverse("main:get_experiences_ajax")).json()[0]['fields']
+        self.assertFalse(fields['is_ongoing'])
+        self.assertIsNotNone(fields['ended_at'])
 
     def test_project_model(self):
         self.assertEqual(str(self.project), "Portfolio Website")
@@ -355,25 +360,24 @@ class ExperienceRoleTests(TestCase):
             if user:
                 self.client.force_login(user)
             response = self.client.get('/experience/')
-            for action, visible in [('create', can_create), ('edit', can_edit), ('delete', can_delete)]:
-                with self.subTest(user=user, action=action):
-                    markup = ('action' if action == 'delete' else 'href') + '="' + self.urls()[action] + '"'
-                    if visible:
-                        self.assertContains(response, markup)
-                    else:
-                        self.assertNotContains(response, markup)
-            self.assertContains(response, 'action="' + self.urls()['star'] + '"')
+            self.assertContains(response, f'data-can-edit="{str(can_edit).lower()}"')
+            self.assertContains(response, f'data-can-delete="{str(can_delete).lower()}"')
+            markup = 'href="' + self.urls()['create'] + '"'
+            if can_create:
+                self.assertContains(response, markup)
+            else:
+                self.assertNotContains(response, markup)
             self.assertContains(response, 'name="csrfmiddlewaretoken"')
-            self.assertContains(response, '☆ Star')
-            self.assertContains(response, '<span class="star-count">0</span>', html=True)
+            fields = self.client.get(reverse('main:get_experiences_ajax')).json()[0]['fields']
+            self.assertEqual(fields['star_count'], 0)
+            self.assertFalse(fields['is_starred'])
             if user:
                 self.client.post(self.urls()['star'])
-                response = self.client.get('/experience/')
-                self.assertContains(response, '★ Unstar')
-                self.assertContains(response, '<span class="star-count">1</span>', html=True)
-                self.assertContains(response, 'aria-pressed="true"')
+                fields = self.client.get(reverse('main:get_experiences_ajax')).json()[0]['fields']
+                self.assertTrue(fields['is_starred'])
+                self.assertEqual(fields['star_count'], 1)
                 self.client.post(self.urls()['star'])
-                self.assertContains(self.client.get('/experience/'), '☆ Star')
+
 
 
 class ProjectAjaxReadTests(TestCase):
