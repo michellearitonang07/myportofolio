@@ -6,12 +6,13 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core import serializers
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, JsonResponse
+from django.db.models import Count, Exists, OuterRef, Value, BooleanField
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 
-from main.forms import ExperienceForm, ProjectForm
+from main.forms import ExperienceForm, ProjectForm, EXPERIENCE_CATEGORY_LABELS
 from main.models import Experience, Project
 from main.life_snapshots import LIFE_SNAPSHOTS
 
@@ -192,6 +193,53 @@ def toggle_experience_star(request, id):
             experience.starred_by.add(request.user)
 
     return redirect("main:show_experience")
+
+
+@never_cache
+def get_experiences_ajax(request):
+    title_query = request.GET.get("title", "").strip()
+    experiences = Experience.objects.annotate(star_count=Count("starred_by")).order_by("-started_at", "id")
+    if title_query:
+        experiences = experiences.filter(title__icontains=title_query)
+    if request.user.is_authenticated:
+        starred = Experience.starred_by.through.objects.filter(
+            experience_id=OuterRef("pk"), user_id=request.user.pk,
+        )
+        experiences = experiences.annotate(user_starred=Exists(starred))
+    else:
+        experiences = experiences.annotate(user_starred=Value(False, output_field=BooleanField()))
+
+    # Kontrak baru tidak menyertakan identitas pemberi star atau data internal akun.
+    data = [{
+        "pk": str(experience.pk),
+        "fields": {
+            "title": experience.title,
+            "description": experience.description,
+            "category": experience.category,
+            "category_label": EXPERIENCE_CATEGORY_LABELS.get(experience.category, experience.get_category_display()),
+            "thumbnail": experience.thumbnail,
+            "started_at": experience.started_at.isoformat(),
+            "ended_at": experience.ended_at.isoformat() if experience.ended_at else None,
+            "is_ongoing": experience.is_ongoing,
+            "star_count": experience.star_count,
+            "is_starred": experience.user_starred,
+        },
+    } for experience in experiences]
+    return JsonResponse(data, safe=False)
+
+
+@require_POST
+def create_experience_ajax(request):
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"message": "Hanya pemilik portofolio yang dapat menambahkan pengalaman. Silakan masuk dengan akun yang berhak."},
+            status=403,
+        )
+    form = ExperienceForm(request.POST)
+    if form.is_valid():
+        experience = form.save()
+        return JsonResponse({"message": "Pengalaman berhasil ditambahkan.", "pk": str(experience.pk)}, status=201)
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
 
 
 def get_experiences_json(request):
