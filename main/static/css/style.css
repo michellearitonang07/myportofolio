@@ -302,3 +302,8 @@ button,a,input,textarea,select { -webkit-tap-highlight-color:transparent; }
 .experience-dates { margin-top:.8rem; color:var(--taupe); font-size:.75rem; }
 .experience-description { white-space:pre-line; }
 #experience-error .button { margin-top:1rem; }
+.experience-fields { border:0; min-width:0; }
+#experience-form-errors:not(:empty) { padding:.8rem; margin-bottom:1rem; background:#f4e3df; border-radius:12px; }
+#experience-form [aria-invalid="true"] { border-color:#852f36; }
+#experience-form .errorlist:empty { display:none; }
+#experience-form .errorlist { margin-top:.4rem; }

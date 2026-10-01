@@ -119,3 +119,20 @@ class ExperienceAjaxTests(TestCase):
             self.assertEqual(item['model'], 'main.experience')
             self.assertEqual(item['fields']['starred_by'], [[self.reader.username], [self.editor.username]])
             self.assertNotIn('star_count', item['fields'])
+
+    def test_page_is_a_shell_and_modal_matches_creation_permissions(self):
+        for user in [None, self.reader, self.editor, self.owner]:
+            self.client.logout()
+            if user:
+                self.client.force_login(user)
+            response = self.client.get('/experience/')
+            self.assertNotIn('experience_list', response.context)
+            self.assertNotContains(response, self.experience.title)
+            self.assertContains(response, 'id="experience-grid"')
+            if user == self.owner:
+                self.assertContains(response, 'id="add-experience-modal"')
+                self.assertContains(response, 'action="/experience/add/"')
+                self.assertContains(response, 'id="experience-form"')
+            else:
+                self.assertNotContains(response, 'id="add-experience-modal"')
+                self.assertNotContains(response, 'id="experience-form"')

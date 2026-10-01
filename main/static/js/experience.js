@@ -141,5 +141,121 @@
         clearTimeout(searchTimer);
         fetchExperiences();
     });
+    const modal = document.getElementById('add-experience-modal');
+    const form = document.getElementById('experience-form');
+    if (modal && form) {
+        const opener = document.querySelector('.experience-add-button');
+        const summary = document.getElementById('experience-form-errors');
+        const submitButton = form.querySelector('button[type="submit"]');
+        const fieldset = form.querySelector('fieldset');
+        const fieldNames = ['title', 'description', 'category', 'thumbnail', 'ended_at'];
+        const previousInert = new Map();
+        let submitting = false;
+        for (const name of fieldNames) {
+            const input = form.elements.namedItem(name);
+            const help = document.getElementById(`${input.id}_help`);
+            input.setAttribute('aria-describedby', `${input.id}_errors${help ? ` ${help.id}` : ''}`);
+        }
+        modal.addEventListener('toggle', event => {
+            if (event.newState === 'open') {
+                document.querySelectorAll('header, main, footer').forEach(node => {
+                    previousInert.set(node, node.inert);
+                    node.inert = true;
+                });
+                if (submitting) modal.querySelector('.project-form-modal__close').focus();
+                else form.elements.namedItem('title').focus();
+            } else {
+                previousInert.forEach((value, node) => { node.inert = value; });
+                previousInert.clear();
+                opener.focus();
+            }
+        });
+        modal.addEventListener('keydown', event => {
+            if (event.key !== 'Tab') return;
+            const controls = [...modal.querySelectorAll('.project-form-modal__content button, input:not([type="hidden"]), textarea, select')]
+                .filter(node => !node.matches(':disabled'));
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+
+        function clearErrors() {
+            summary.replaceChildren();
+            form.querySelectorAll('[data-field-errors]').forEach(node => node.replaceChildren());
+            fieldNames.forEach(name => form.elements.namedItem(name).removeAttribute('aria-invalid'));
+        }
+
+        function displayErrors(errors, fallback) {
+            const messages = [];
+            if (errors && typeof errors === 'object' && !Array.isArray(errors)) {
+                for (const [name, entries] of Object.entries(errors)) {
+                    if (!Array.isArray(entries)) continue;
+                    for (const error of entries) {
+                        if (typeof error?.message !== 'string') continue;
+                        messages.push(error.message);
+                        if (fieldNames.includes(name)) {
+                            const input = form.elements.namedItem(name);
+                            input.setAttribute('aria-invalid', 'true');
+                            document.getElementById(`${input.id}_errors`).append(element('li', '', error.message));
+                        }
+                    }
+                }
+            }
+            summary.textContent = messages.length ? messages.join(' ') : fallback;
+            showToast('Gagal menambahkan pengalaman', summary.textContent, 'error', 6000);
+        }
+
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (submitting) return;
+            submitting = true;
+            clearErrors();
+            // Ambil FormData sebelum fieldset dinonaktifkan agar seluruh isian dan CSRF ikut dikirim.
+            const body = new FormData(form);
+            fieldset.disabled = true;
+            submitButton.disabled = true;
+            submitButton.textContent = 'Menyimpan...';
+            form.setAttribute('aria-busy', 'true');
+            let failed = false;
+            try {
+                const response = await fetch(form.dataset.createUrl, {
+                    method: 'POST', headers: {'Accept': 'application/json'}, body,
+                });
+                const result = await response.json().catch(() => null);
+                if (response.status === 201 && uuidPattern.test(result?.pk)) {
+                    form.reset();
+                    modal.hidePopover();
+                    showToast('Berhasil', 'Pengalaman berhasil ditambahkan. Daftar diperbarui sesuai pencarian aktif.', 'success');
+                    clearTimeout(searchTimer);
+                    await fetchExperiences();
+                } else {
+                    failed = true;
+                    const fallback = response.status === 403
+                        ? 'Akses ditolak atau sesi/token CSRF tidak berlaku. Muat ulang halaman dan masuk dengan akun yang berhak.'
+                        : 'Respons server tidak sesuai. Periksa daftar sebelum mencoba menyimpan kembali.';
+                    displayErrors(result?.errors, typeof result?.message === 'string' ? result.message : fallback);
+                }
+            } catch (_) {
+                failed = true;
+                displayErrors(null, 'Koneksi terputus. Isian tetap tersimpan di form. Periksa daftar sebelum mencoba lagi agar data tidak terduplikasi.');
+            } finally {
+                submitting = false;
+                fieldset.disabled = false;
+                submitButton.disabled = false;
+                submitButton.textContent = 'Simpan Pengalaman';
+                form.setAttribute('aria-busy', 'false');
+                if (failed && modal.matches(':popover-open')) {
+                    const invalid = form.querySelector('[aria-invalid="true"]');
+                    (invalid || summary).focus();
+                }
+            }
+        });
+    }
     fetchExperiences();
 })();

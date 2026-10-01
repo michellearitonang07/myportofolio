@@ -169,3 +169,136 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
             self.browser.find_element('css selector', '.logout-form button').click()
             self.wait.until(lambda d: not d.find_elements('css selector', '.nav-user'))
         self.assert_no_js_errors()
+
+    def open_modal(self, title='Penelitian Baru'):
+        self.browser.find_element('class name', 'experience-add-button').click()
+        self.wait.until(lambda d: d.switch_to.active_element.get_attribute('name') == 'title')
+        for name, value in [('title', title), ('description', 'Kegiatan penelitian bersama')]:
+            field = self.browser.find_element('css selector', f'#experience-form [name={name}]')
+            field.clear()
+            field.send_keys(value)
+
+    def submit_modal(self):
+        button = self.browser.find_element('css selector', '#experience-form button[type=submit]')
+        self.browser.execute_script("arguments[0].scrollIntoView({block:'center',behavior:'instant'})", button)
+        button.click()
+
+    def test_create_modal_refresh_csrf_toast_and_filter_without_reload(self):
+        self.login('owner')
+        self.open_page('?title=Penelitian')
+        self.browser.execute_script("""
+            window.pageMarker='tetap'; window.realFetch=fetch; window.postInfo=[];
+            window.fetch=async (...args)=>{
+                const response=await realFetch(...args);
+                if(args[1]?.method==='POST') postInfo.push({status:response.status,csrf:!!args[1].body.get('csrfmiddlewaretoken')});
+                return response;
+            };
+        """)
+        self.open_modal()
+        self.screenshot('experience-modal-desktop.png')
+        self.submit_modal()
+        self.wait.until(lambda d: not d.find_element('id', 'add-experience-modal').is_displayed())
+        self.wait.until(lambda d: len(d.find_elements('css selector', '#experience-grid article')) == 1)
+        self.wait.until(lambda d: d.find_element('id', 'toast-title').text == 'Berhasil')
+        self.assertEqual(self.browser.execute_script('return pageMarker'), 'tetap')
+        self.assertEqual(self.browser.execute_script('return postInfo'), [{'status': 201, 'csrf': True}])
+        self.assertEqual(self.browser.find_element('id', 'experience-search').get_attribute('value'), 'Penelitian')
+        self.assertEqual(self.browser.find_element('css selector', '#experience-grid h2').text, 'Penelitian Baru')
+        self.assertEqual(self.browser.find_element('css selector', '#experience-form [name=title]').get_attribute('value'), '')
+        self.assertEqual(Experience.objects.count(), 2)
+        self.open_modal('Tidak sesuai filter')
+        self.submit_modal()
+        self.wait.until(lambda d: not d.find_element('id', 'add-experience-modal').is_displayed())
+        self.wait.until(lambda d: d.find_element('id', 'experience-results').get_attribute('aria-busy') == 'false')
+        self.assertEqual(len(self.browser.find_elements('css selector', '#experience-grid article')), 1)
+        self.assertEqual(Experience.objects.count(), 3)
+        self.assert_no_js_errors()
+
+    def test_modal_validation_preserves_input_and_renders_errors_as_text(self):
+        self.login('owner')
+        self.open_page()
+        payload = '<img src="x" onerror="alert(\'XSS!\')">'
+        self.open_modal(payload)
+        self.submit_modal()
+        self.wait.until(lambda d: d.find_element('id', 'id_title').get_attribute('aria-invalid') == 'true')
+        self.assertTrue(self.browser.find_element('id', 'add-experience-modal').is_displayed())
+        self.assertEqual(self.browser.find_element('id', 'id_title').get_attribute('value'), payload)
+        self.assertIn('tag HTML', self.browser.find_element('id', 'id_title_errors').text)
+        self.wait.until(lambda d: 'tag HTML' in d.find_element('id', 'toast-message').text)
+        self.assertEqual(Experience.objects.count(), 1)
+        self.assertEqual(self.browser.find_elements('css selector', '#experience-form img'), [])
+        self.browser.execute_script("""
+            window.realFetch=fetch;
+            window.fetch=async()=>({status:400,json:async()=>({errors:{description:[{message:'<img src=x onerror=alert(1)>'}]}})});
+        """)
+        self.submit_modal()
+        self.wait.until(lambda d: '<img' in d.find_element('id', 'id_description_errors').text)
+        self.assertEqual(self.browser.find_elements('css selector', '#experience-form-errors img, #id_description_errors img, #toast-message img'), [])
+        self.browser.execute_script('window.fetch=realFetch')
+        self.browser.find_element('id', 'id_title').clear()
+        self.browser.find_element('id', 'id_title').send_keys('Judul diperbaiki')
+        self.submit_modal()
+        self.wait.until(lambda d: not d.find_element('id', 'add-experience-modal').is_displayed())
+        self.assertEqual(Experience.objects.count(), 2)
+        self.assert_no_js_errors()
+
+    def test_duplicate_submit_network_html_and_expired_session(self):
+        self.login('owner')
+        self.open_page()
+        self.open_modal()
+        self.browser.execute_script("""
+            window.realFetch=fetch; window.postCount=0;
+            window.fetch=()=>{postCount++; return new Promise(resolve=>window.finish=resolve);};
+            const form=document.getElementById('experience-form');
+            form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+            form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        """)
+        self.assertEqual(self.browser.execute_script('return postCount'), 1)
+        self.assertFalse(self.browser.find_element('css selector', '#experience-form button[type=submit]').is_enabled())
+        self.browser.execute_script('finish({status:500,json:async()=>{throw new Error("HTML")}})')
+        self.wait.until(lambda d: 'Respons server' in d.find_element('id', 'experience-form-errors').text)
+        self.assertTrue(self.browser.find_element('id', 'add-experience-modal').is_displayed())
+        self.browser.execute_script('window.fetch=()=>Promise.reject(new TypeError("offline"))')
+        self.submit_modal()
+        self.wait.until(lambda d: 'Koneksi terputus' in d.find_element('id', 'experience-form-errors').text)
+        self.assertEqual(self.browser.find_element('id', 'id_title').get_attribute('value'), 'Penelitian Baru')
+        self.browser.execute_script('window.fetch=realFetch')
+        self.browser.delete_cookie('sessionid')
+        self.submit_modal()
+        self.wait.until(lambda d: 'akun yang berhak' in d.find_element('id', 'experience-form-errors').text)
+        self.assertEqual(Experience.objects.count(), 1)
+        self.assert_no_js_errors()
+
+    def test_modal_keyboard_responsive_and_reduced_motion(self):
+        from selenium.webdriver.common.keys import Keys
+        self.login('owner')
+        for width, height in [(1440, 1000), (768, 1024), (390, 844)]:
+            self.browser.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {'width': width, 'height': height, 'deviceScaleFactor': 1, 'mobile': False})
+            try:
+                self.open_page()
+                self.assertTrue(self.browser.execute_script('return document.documentElement.scrollWidth <= innerWidth'))
+                self.screenshot(f'experience-{width}.png')
+                self.open_modal()
+                self.assertTrue(self.browser.execute_script("return document.querySelector('main').inert"))
+                self.assertTrue(self.browser.execute_script("""
+                    const box=document.querySelector('#add-experience-modal .project-form-modal__content').getBoundingClientRect();
+                    return box.left >= 0 && box.right <= innerWidth && box.bottom <= innerHeight;
+                """))
+                self.screenshot(f'experience-modal-{width}.png')
+                self.browser.find_element('css selector', '#experience-form button[type=submit]').send_keys(Keys.TAB)
+                self.assertIn('project-form-modal__close', self.browser.switch_to.active_element.get_attribute('class'))
+                self.browser.switch_to.active_element.send_keys(Keys.SHIFT, Keys.TAB)
+                self.assertEqual(self.browser.switch_to.active_element.get_attribute('type'), 'submit')
+                self.browser.switch_to.active_element.send_keys(Keys.ESCAPE)
+                self.wait.until(lambda d: not d.find_element('id', 'add-experience-modal').is_displayed())
+                self.wait.until(lambda d: d.switch_to.active_element.get_attribute('class').endswith('experience-add-button'))
+                self.assertFalse(self.browser.execute_script("return document.querySelector('main').inert"))
+            finally:
+                self.browser.execute_cdp_cmd('Emulation.clearDeviceMetricsOverride', {})
+        self.browser.execute_cdp_cmd('Emulation.setEmulatedMedia', {'features': [{'name': 'prefers-reduced-motion', 'value': 'reduce'}]})
+        try:
+            self.open_page()
+            self.assertEqual(self.browser.execute_script("return getComputedStyle(document.querySelector('.experience-add-button')).transitionDuration"), '0s')
+        finally:
+            self.browser.execute_cdp_cmd('Emulation.setEmulatedMedia', {'features': []})
+        self.assert_no_js_errors()
