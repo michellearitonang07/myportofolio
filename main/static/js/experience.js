@@ -38,7 +38,7 @@
 
     function buildCard(item) {
         const fields = item?.fields;
-        if (!uuidPattern.test(item?.pk) || !fields ||
+        if (typeof item?.pk !== 'string' || !uuidPattern.test(item.pk) || !fields ||
             !['title', 'description', 'category', 'category_label', 'started_at'].every(key => typeof fields[key] === 'string') ||
             !Number.isFinite(Date.parse(fields.started_at)) ||
             !(fields.ended_at === null || (typeof fields.ended_at === 'string' && Number.isFinite(Date.parse(fields.ended_at)))) ||
@@ -228,7 +228,7 @@
                     method: 'POST', headers: {'Accept': 'application/json'}, body,
                 });
                 const result = await response.json().catch(() => null);
-                if (response.status === 201 && uuidPattern.test(result?.pk)) {
+                if (response.status === 201 && typeof result?.pk === 'string' && uuidPattern.test(result.pk)) {
                     form.reset();
                     modal.hidePopover();
                     showToast('Berhasil', 'Pengalaman berhasil ditambahkan. Daftar diperbarui sesuai pencarian aktif.', 'success');

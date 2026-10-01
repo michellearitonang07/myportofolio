@@ -64,6 +64,8 @@ EXPERIENCE_CATEGORY_LABELS = {
 class ExperienceForm(ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.error_messages["null_characters_not_allowed"] = "Karakter null tidak diperbolehkan."
         self.fields["category"].choices = list(EXPERIENCE_CATEGORY_LABELS.items())
         self.fields["ended_at"].help_text = "Kosongkan jika pengalaman masih berlangsung."
 

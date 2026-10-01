@@ -77,7 +77,7 @@ class ExperienceAjaxTests(TestCase):
 
     def test_invalid_input_and_xss_return_indonesian_field_errors(self):
         self.client.force_login(self.owner)
-        cases = [('title', ''), ('title', ' '), ('title', 'x' * 256),
+        cases = [('title', ''), ('title', ' '), ('title', 'x' * 256), ('title', 'a\x00b'),
                  ('title', '<img src="x" onerror="alert(\'XSS!\')">'),
                  ('description', '<p></p>'), ('category', 'invalid'),
                  ('thumbnail', 'javascript:alert(1)'), ('thumbnail', 'ftp://example.com/x'),
@@ -89,6 +89,7 @@ class ExperienceAjaxTests(TestCase):
                 self.assertIn(field, response.json()['errors'])
                 self.assertNotIn('This field is required', response.content.decode())
                 self.assertNotIn('Enter a valid', response.content.decode())
+                self.assertNotIn('Null characters', response.content.decode())
         self.assertEqual(Experience.objects.count(), 1)
 
     def test_sanitization_is_shared_with_legacy_create_and_editor_edit(self):

@@ -302,3 +302,20 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
         finally:
             self.browser.execute_cdp_cmd('Emulation.setEmulatedMedia', {'features': []})
         self.assert_no_js_errors()
+
+    def test_local_thumbnail_completed_dates_and_broken_image_fallback(self):
+        from django.utils import timezone
+        self.experience.thumbnail = self.live_server_url + '/static/img/logo-ui.jpg'
+        self.experience.ended_at = timezone.now()
+        self.experience.save()
+        self.open_page()
+        self.wait.until(lambda d: d.execute_script("return document.querySelector('.experience-thumbnail')?.naturalWidth > 0"))
+        self.assertEqual(self.browser.find_element('css selector', '.experience-status').text, 'Selesai')
+        self.assertIn('Selesai', self.browser.find_element('css selector', '.experience-dates').text)
+        self.assertEqual(self.browser.find_element('css selector', '.experience-thumbnail').get_attribute('referrerpolicy'), 'no-referrer')
+        self.experience.thumbnail = self.live_server_url + '/static/img/tidak-ada.jpg'
+        self.experience.save()
+        self.open_page()
+        self.wait.until(lambda d: not d.find_elements('css selector', '.experience-thumbnail'))
+        self.assertEqual(len(self.browser.find_elements('css selector', '#experience-grid article')), 1)
+        self.assert_no_js_errors()
