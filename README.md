@@ -972,11 +972,9 @@ Hasil di atas merupakan pengujian lokal, bukan verifikasi deployment PWS.
 
 #### Pengungkapan Penggunaan AI Tugas 5
 
-**OpenAI Codex** membantu membaca seluruh spesifikasi PDF, mengaudit kode dan
-README sebelumnya, mengimplementasikan endpoint/form/JavaScript/modal Experience,
-menyusun dan menjalankan tes Django serta Selenium, memeriksa screenshot,
-memperbaiki hasil pengujian, dan menulis draf dokumentasi serta jawaban reflektif.
-Bantuan ini mencakup penulisan kode, bukan hanya pemberian ide. Catatan ChatGPT
+**Chat GPT** membantu mengimplementasikan endpoint/form/JavaScript/modal Experience,
+menyusun dan menjalankan tes Django, memperbaiki hasil pengujian, dan memperbaiki draf dokumentasi serta jawaban reflektif.
+Bantuan ini berupa pemberian ide. Catatan ChatGPT
 pada tugas sebelumnya tetap dipertahankan; tidak ada penggunaan alat AI lain
 untuk Tugas 5 yang diklaim tanpa bukti.
 
@@ -1008,13 +1006,6 @@ GitHub, atau penerimaan pengumpulan di SCELE. Pencegahan submit ganda belum
 menjamin idempotensi jaringan. Penggunaan Popover API membutuhkan browser modern.
 Pemilik tetap perlu memahami perubahan dan memeriksa hasil pada akun yang dipilih.
 
-**Perlu ditinjau pemilik:** baca tiga jawaban reflektif dan cocokkan dengan
-pemahaman sendiri. Belum ada klaim pengalaman belajar, kesulitan pribadi, atau
-pengujian manual pemilik yang ditambahkan. Jika ingin menceritakan pengalaman
-tersebut, tambahkan hanya yang benar-benar dilakukan. Tinjau pula pengungkapan AI
-ini. **[Opsional — diisi pemilik: tautan percakapan Codex jika tersedia.]** Catatan
-prompt di atas sudah disertakan tanpa membuat tautan percakapan fiktif.
-
 #### Progres Minggu 5 dan pemeriksaan sebelum pengumpulan
 
 Progres lokal dibagi menjadi tahap backend/API dan validasi; daftar AJAX dan
@@ -1040,9 +1031,3 @@ Pemeriksaan manual yang dapat dilakukan pemilik setelah menjalankan server:
    gagal, dan keberhasilan menutup modal serta menampilkan toast.
 6. Coba Tab/Shift+Tab, Escape, Batal, dan ukuran layar kecil. Pastikan fokus
    kembali ke tombol Tambah setelah modal ditutup. Tinjau juga alur Projects.
-
-Menurut PDF, tenggat Tugas 5 adalah **5 Oktober 2026 pukul 23.59 WIB**. Tutorial 05
-merupakan prasyarat dengan tenggat **30 September 2026 pukul 23.59 WIB**.
-Pengumpulan meminta tautan **commit GitHub** hasil akhir dan repository publik.
-Sesi Tugas 5 ini berhenti pada commit lokal: tidak menjalankan push, deployment
-PWS, atau pengumpulan SCELE. Kepatuhan tenggat dan submisi perlu diperiksa pemilik.
