@@ -692,38 +692,35 @@ superuser controls separately. No deployment or push is part of this makeover.
 
 ### Tugas 5
 
-Tugas 5 menerapkan interaktivitas AJAX pada **Experience**, yaitu bagian pilihan
-Tugas 3 dan Tugas 4. Implementasi Projects dari Tutorial 05, autentikasi, hak
-akses Editor, serta desain portofolio yang sudah ada tetap dipertahankan.
-Bagian ini menjelaskan kondisi terbaru Experience; uraian tugas sebelumnya di
-atas tetap disimpan sebagai catatan perkembangan, termasuk alur
-serialization/deserialization yang digunakan sebelum Tugas 5.
+Tugas 5 menerapkan interaktivitas AJAX pada **Experience**, yaitu bagian yang sebelumnya sudah dikembangkan pada Tugas 3 dan Tugas 4. Implementasi Projects dari Tutorial 05, autentikasi, hak akses Editor, serta desain portofolio yang sudah ada tetap dipertahankan.
+
+Pada Tugas 5, halaman Experience dikembangkan agar data dapat dimuat dan dicari secara asynchronous menggunakan Fetch API tanpa perlu melakukan reload seluruh halaman. Selain itu, proses penambahan Experience juga dapat dilakukan melalui modal menggunakan AJAX, disertai validasi, toast notification, perlindungan CSRF dan XSS, serta hak akses yang tetap mengikuti aturan dari Tugas 4.
 
 #### Implementasi dan kesesuaian persyaratan
 
-| Persyaratan | Implementasi | Status lokal |
+| Persyaratan | Implementasi | Status |
 | --- | --- | --- |
-| Daftar dimuat dengan AJAX | `show_experience` hanya merender kerangka, form, dan informasi hak akses; `experience.js` mengambil data dengan Fetch API | Selesai |
-| JSON manual dan informasi star | `get_experiences_ajax` menggunakan `JsonResponse`, jumlah star, serta status pengguna saat ini | Selesai |
-| Kondisi memuat, kosong, dan gagal | Pesan berbahasa Indonesia, `aria-live`, `aria-busy`, dan tombol Coba lagi | Selesai |
-| Pencarian tanpa memuat ulang halaman | Pencarian judul, debounce 300 ms, pembatalan permintaan lama | Selesai |
-| Tambah melalui modal dan AJAX | `ExperienceForm`, Fetch API, respons 201/400/403, dan pembaruan daftar | Selesai |
-| Toast berhasil dan gagal | Menggunakan kembali `showToast` dari Tutorial 05 | Selesai |
-| CSRF dan pemeriksaan peran | Token form dikirim melalui `FormData`; izin diperiksa kembali di view | Selesai |
-| Perlindungan XSS | DOM/`textContent`, validasi URL, serta `strip_tags` pada form | Selesai |
-| Star, ubah, dan hapus sebelumnya | Endpoint lama dan batas hak akses tetap digunakan | Selesai |
-| Tampilan dan aksesibilitas | Desain lama dipertahankan; modal, keyboard, dan tiga ukuran layar diuji | Selesai |
-| Eksekusi lokal | `runserver`, pemeriksaan Django, dan tes otomatis dijalankan | Selesai |
-| Tiga jawaban reflektif dan pengungkapan AI | Tersedia di bagian ini dalam bahasa Indonesia | Draf siap ditinjau pemilik |
-| Push, deployment PWS, dan pengumpulan SCELE | Tidak dilakukan otomatis | Dilakukan pemilik setelah peninjauan |
+| Daftar dimuat dengan AJAX | `show_experience` merender struktur halaman, sedangkan `experience.js` mengambil data menggunakan Fetch API | Selesai |
+| JSON manual dan informasi star | `get_experiences_ajax` menggunakan `JsonResponse` serta menyertakan jumlah star dan status star pengguna saat ini | Selesai |
+| Kondisi memuat, kosong, dan gagal | Tersedia pesan loading, empty state, error state, `aria-live`, `aria-busy`, dan tombol Coba lagi | Selesai |
+| Pencarian tanpa reload halaman | Pencarian berdasarkan judul menggunakan debounce 300 ms dan pembatalan request sebelumnya | Selesai |
+| Tambah melalui modal dan AJAX | Menggunakan `ExperienceForm`, Fetch API, respons 201/400/403, dan pembaruan daftar setelah data berhasil ditambahkan | Selesai |
+| Toast berhasil dan gagal | Menggunakan kembali fungsi `showToast` dari Tutorial 05 | Selesai |
+| CSRF dan pemeriksaan peran | Token CSRF dikirim bersama form dan hak akses tetap diperiksa di backend | Selesai |
+| Perlindungan XSS | Menggunakan DOM API, `textContent`, validasi URL, serta `strip_tags` pada form | Selesai |
+| Star, ubah, dan hapus | Endpoint dan aturan hak akses dari Tugas 4 tetap dipertahankan | Selesai |
+| Tampilan dan aksesibilitas | Modal dapat digunakan dengan keyboard dan layout diuji pada beberapa ukuran layar | Selesai |
+| Pengujian lokal | Django system check, automated test, browser test, dan pemeriksaan static file dijalankan | Selesai |
+| Tiga pertanyaan reflektif | Jawaban tersedia dalam bahasa Indonesia pada bagian Pertanyaan Reflektif | Selesai |
+| Pengungkapan penggunaan AI | Dokumentasi penggunaan ChatGPT dan OpenAI Codex tersedia pada bagian akhir | Selesai |
 
 #### Daftar Experience dan struktur JSON
 
-Endpoint baru **`GET /api/experience/list/`** disediakan khusus untuk daftar AJAX.
-Endpoint lama `/api/experience/` dan `/api/experience/<uuid>/` tidak diubah;
-keduanya tetap mengembalikan format serializer Django dari tugas sebelumnya.
+Endpoint baru **`GET /api/experience/list/`** digunakan untuk menyediakan data Experience yang akan ditampilkan melalui AJAX.
 
-Contoh satu elemen dalam respons daftar baru:
+Endpoint lama `/api/experience/` dan `/api/experience/<uuid>/` tetap dipertahankan agar fitur dari tugas sebelumnya tidak rusak.
+
+Contoh satu elemen dalam response endpoint AJAX:
 
 ```json
 {
@@ -743,119 +740,118 @@ Contoh satu elemen dalam respons daftar baru:
 }
 ```
 
-Respons utuh berupa daftar objek tersebut. `ended_at` yang kosong menandakan
-pengalaman masih berlangsung. **`started_at` pada model yang sudah ada merupakan
-waktu pencatatan otomatis**, sehingga kartu menulis “Dicatat”, bukan menganggapnya
-sebagai tanggal mulai kegiatan. Tanggal ditampilkan dengan format Indonesia dan
-zona waktu Asia/Jakarta. Gambar bersifat opsional; URL tidak valid atau gambar
-yang gagal dimuat tidak menghalangi pembacaan kartu lainnya.
+Response lengkap berupa list yang berisi objek Experience. Field `ended_at` yang bernilai `null` menandakan bahwa pengalaman tersebut masih berlangsung.
 
-`Count` dan `Exists` menghitung metadata star melalui satu query daftar, sehingga
-tidak ada query tambahan untuk setiap kartu. Pengunjung memperoleh
-`is_starred: false` tetapi tetap dapat melihat jumlah star. Endpoint baru tidak
-mengirim username, ID akun, password, atau session pemberi star. Respons memakai
-`never_cache` karena status star bergantung pada pengguna yang sedang mengakses.
+Field `started_at` pada model menggunakan `auto_now_add=True`, sehingga nilainya menunjukkan waktu data dicatat ke database. Karena itu, pada tampilan kartu digunakan keterangan **Dicatat**, bukan dianggap sebagai tanggal mulai kegiatan.
 
-JavaScript memeriksa struktur respons, UUID, tanggal, tipe teks, dan metadata
-star sebelum menampilkan kartu. Respons non-JSON, status gagal, atau data yang
-tidak sesuai akan menampilkan kondisi gagal beserta tombol Coba lagi. Seluruh
-kartu dibangun terlebih dahulu, kemudian dimasukkan ke daftar sekaligus agar
-kegagalan satu respons tidak menghasilkan daftar yang terisi sebagian.
+Informasi star juga disertakan pada response. `star_count` menunjukkan jumlah pengguna yang memberi bintang, sedangkan `is_starred` menunjukkan apakah pengguna yang sedang login sudah memberikan bintang pada Experience tersebut.
+
+Untuk pengguna yang belum login, `is_starred` bernilai `false`, tetapi jumlah bintang tetap dapat dilihat.
+
+Endpoint AJAX tidak mengirim informasi sensitif seperti password, email, session, maupun ID internal pengguna.
+
+JavaScript juga memeriksa struktur data sebelum menampilkan kartu. Jika response gagal, bukan JSON, atau tidak memiliki format yang diharapkan, halaman akan menampilkan error state beserta tombol **Coba lagi**.
 
 #### Pencarian dengan debouncing
 
-Parameter **`?title=...`** mencari judul menggunakan `icontains` setelah spasi di
-tepi dibuang. Huruf besar/kecil tidak dibedakan sesuai kemampuan pencocokan
-backend database. Kata kunci kosong menampilkan seluruh data, sedangkan hasil
-kosong memiliki pesan tersendiri.
+Fitur pencarian menggunakan parameter:
 
-Setiap perubahan input membatalkan timer sebelumnya. Permintaan baru dikirim
-setelah pengguna berhenti mengetik selama **300 ms**. Menekan Enter atau tombol
-Cari langsung menjalankan pencarian dan membatalkan timer. `AbortController`
-membatalkan permintaan sebelumnya; identitas controller juga diperiksa sebelum
-hasil maupun kegagalan dipakai. Dengan demikian, respons lama yang terlambat
-tidak dapat mengganti hasil pencarian terbaru. Dokumen halaman tetap sama.
+```text
+?title=...
+```
+
+Pencarian dilakukan terhadap judul Experience menggunakan `icontains`, sehingga pencarian tidak membedakan huruf besar dan kecil sesuai kemampuan pencocokan database.
+
+Jika kolom pencarian kosong, seluruh Experience akan ditampilkan kembali.
+
+Pencarian dilakukan menggunakan AJAX sehingga halaman tidak perlu dimuat ulang.
+
+Untuk mengurangi jumlah request ke server, digunakan teknik **debouncing selama 300 ms**. Setiap kali pengguna mengetik, timer sebelumnya akan dibatalkan dan dibuat timer baru. Request baru hanya dikirim setelah pengguna berhenti mengetik selama kurang lebih 300 ms.
+
+Jika pengguna menekan Enter atau tombol **Cari**, pencarian dapat langsung dijalankan tanpa harus menunggu timer.
+
+Implementasi juga menggunakan `AbortController` untuk membatalkan request sebelumnya ketika pencarian baru dilakukan. Hal ini mencegah response dari pencarian lama yang datang terlambat menggantikan hasil pencarian terbaru.
 
 #### Modal, validasi, dan toast
 
-Tombol Tambah Pengalaman hanya tersedia untuk superuser. Modal menggunakan
-Popover API serta kelas tampilan modal yang sudah dipakai Projects. Fokus
-berpindah ke judul saat modal terbuka, Tab/Shift+Tab tetap berada di dalam dialog,
-Escape dapat menutupnya, dan fokus kembali ke tombol pembuka setelah ditutup.
-Elemen halaman di belakang modal dibuat `inert` selama dialog terbuka.
+Untuk pengguna yang memiliki hak akses, penambahan Experience dapat dilakukan melalui modal tanpa berpindah ke halaman lain.
 
-Form dikirim ke **`POST /experience/add-ajax/`** menggunakan `FormData` yang juga
-memuat `csrfmiddlewaretoken`. FormData dibuat sebelum isian dinonaktifkan agar
-field dan token tidak terlewat. Tombol simpan serta isian dinonaktifkan selama
-permintaan berjalan, dan penanda `submitting` menolak submit kedua.
+Tombol **Tambah Pengalaman** hanya ditampilkan untuk superuser.
 
-| Hasil permintaan | Respons |
+Modal menggunakan komponen yang disesuaikan dengan pola modal pada Projects. Ketika modal dibuka, fokus berpindah ke input pertama. Navigasi menggunakan Tab dan Shift+Tab tetap berada di dalam modal, tombol Escape dapat digunakan untuk menutup modal, dan setelah modal ditutup fokus kembali ke tombol pembuka.
+
+Form dikirim ke endpoint:
+
+```text
+POST /experience/add-ajax/
+```
+
+menggunakan `FormData` dan Fetch API.
+
+Token `csrfmiddlewaretoken` ikut dikirim bersama form agar request POST tetap dilindungi oleh mekanisme CSRF Django.
+
+Selama request berlangsung, tombol submit dan field form dinonaktifkan untuk mencegah submit ganda.
+
+Response endpoint:
+
+| Kondisi | Response |
 | --- | --- |
-| Superuser, data valid, CSRF sah | 201 JSON berisi `message` dan `pk` |
-| Superuser, data tidak valid | 400 JSON berisi `errors` menurut nama field |
-| Pengunjung, pengguna biasa, atau Editor dengan CSRF sah | 403 JSON berisi pesan penolakan |
-| CSRF hilang/tidak sah | 403 dari middleware Django |
-| GET ke endpoint tambah AJAX | 405 karena `@require_POST` |
+| Superuser, data valid, CSRF valid | `201 Created` dengan JSON berisi `message` dan `pk` |
+| Superuser, data tidak valid | `400 Bad Request` dengan error sesuai field |
+| Pengunjung, pengguna biasa, atau Editor | `403 Forbidden` |
+| Token CSRF tidak valid | `403 Forbidden` dari middleware Django |
+| Request GET ke endpoint AJAX | `405 Method Not Allowed` |
 
-Penolakan AJAX memakai JSON tanpa mengarahkan Fetch ke halaman login. View
-tradisional `/experience/add/` tetap tersedia dan tetap mengarahkan pengunjung
-ke login. Form tersebut serta form ubah memakai `ExperienceForm` yang sama.
+Jika validasi gagal, modal tetap terbuka dan nilai input tidak langsung dihapus. Error ditampilkan di dalam modal pada field yang sesuai.
 
-Jika validasi gagal, modal tetap terbuka, nilai input dipertahankan, dan error
-muncul pada field serta ringkasan di dalam dialog. `aria-invalid` dan
-`aria-describedby` menghubungkan error dengan input; fokus diarahkan ke field
-bermasalah. Pesan validasi Experience menggunakan bahasa Indonesia tanpa
-mengganti bahasa global form autentikasi atau Projects sebelumnya.
+Atribut seperti `aria-invalid` dan `aria-describedby` digunakan agar error form tetap dapat dipahami oleh teknologi bantu.
 
-Jika berhasil, form direset, modal ditutup, toast sukses ditampilkan, lalu daftar
-diambil ulang dengan kata kunci yang masih aktif. Data baru yang tidak cocok
-dengan pencarian memang tidak muncul pada daftar hasil tersebut. Pada gangguan
-jaringan, isian tidak dihapus dan pengguna diingatkan memeriksa daftar sebelum
-mengulang, karena koneksi yang putus tidak selalu berarti server belum menyimpan.
-Pencegahan submit ganda di browser bukan jaminan idempotensi lintas tab atau
-permintaan yang dikirim ulang setelah koneksi terputus.
+Jika penambahan berhasil, form akan direset, modal ditutup, toast sukses ditampilkan, dan daftar Experience dimuat kembali menggunakan AJAX tanpa reload seluruh halaman.
 
-Toast menggunakan **`showToast` yang sudah ada**, tanpa membuat sistem notifikasi
-kedua. Kegagalan jaringan, validasi server, sesi/CSRF yang tidak berlaku, dan
-respons tak terduga memiliki pesan yang sesuai. Listener modal hanya dipasang
-jika elemennya ada, sehingga halaman pengunjung, pengguna biasa, dan Editor
-tidak mengalami error karena mencoba mengakses elemen yang tidak dirender.
+Jika sedang terdapat filter pencarian, daftar tetap mengikuti kata kunci pencarian yang sedang aktif.
+
+Untuk gangguan jaringan atau response yang tidak sesuai, pengguna mendapatkan toast error dan nilai input tetap dipertahankan agar dapat diperiksa kembali.
+
+Toast menggunakan fungsi `showToast` yang sudah dibuat pada Tutorial 05 sehingga tidak perlu membuat sistem notifikasi baru.
 
 #### Keamanan dan hak akses
 
-`ExperienceForm.clean_title` dan `clean_description` menggunakan `strip_tags`,
-membuang spasi tepi, dan menolak hasil yang kosong. Validasi ini dipakai bersama
-oleh tambah AJAX, tambah biasa, serta ubah. Field kategori, panjang judul, URL,
-dan tanggal tetap divalidasi oleh ModelForm. URL gambar hanya menerima HTTP atau
-HTTPS. `strip_tags` adalah pembersihan tambahan, bukan pengganti escaping;
-misalnya, teks `List<String>` dapat menjadi `List` karena field bukan editor HTML.
+Validasi server tetap dilakukan menggunakan `ExperienceForm`.
 
-Kartu, error, judul, deskripsi, kategori, dan label bintang dibuat dengan DOM serta
-`textContent`, sehingga teks tidak diinterpretasikan sebagai HTML. URL gambar
-juga diperiksa saat dirender, termasuk untuk data lama atau data yang dimasukkan
-melalui Admin. Skema seperti `javascript:` dan `data:` tidak dipasang sebagai
-sumber gambar. URL aksi dibentuk dari URL Django dan UUID yang sudah diperiksa.
-Tidak ada `csrf_exempt`, dan semua mutasi tetap dilindungi middleware CSRF.
+Pada `ExperienceForm`, `clean_title` dan `clean_description` menggunakan `strip_tags()` untuk membersihkan tag HTML serta menghapus whitespace pada bagian awal dan akhir input.
 
-| Peran | Baca/cari | Beri/batalkan bintang | Tambah | Ubah | Hapus |
+Validasi ini digunakan pada proses tambah melalui AJAX, tambah melalui halaman biasa, dan edit Experience.
+
+Field lain seperti kategori, panjang judul, URL, dan tanggal tetap divalidasi melalui ModelForm Django.
+
+Pembersihan menggunakan `strip_tags()` bukan pengganti escaping saat rendering. Data yang diterima dari server tetap diperlakukan sebagai data yang tidak dipercaya.
+
+Pada frontend, judul, deskripsi, kategori, error, dan informasi lainnya dimasukkan ke halaman menggunakan DOM API dan `textContent`, sehingga nilai tersebut tidak diinterpretasikan sebagai HTML.
+
+URL gambar juga diperiksa sebelum digunakan. URL dengan skema berbahaya seperti `javascript:` atau `data:` tidak digunakan sebagai sumber gambar.
+
+Tidak terdapat penggunaan `csrf_exempt`, sehingga seluruh operasi yang mengubah data tetap dilindungi oleh middleware CSRF Django.
+
+Hak akses Experience tetap mengikuti aturan dari Tugas 4:
+
+| Peran | Baca/Cari | Beri/Batalkan Bintang | Tambah | Ubah | Hapus |
 | --- | --- | --- | --- | --- | --- |
-| Pengunjung | Ya | Login dahulu | Ditolak | Login dahulu | Login dahulu |
+| Pengunjung | Ya | Login terlebih dahulu | Ditolak | Login terlebih dahulu | Login terlebih dahulu |
 | Pengguna biasa | Ya | Ya | 403 | 403 | 403 |
 | Editor | Ya | Ya | 403 | Ya | 403 |
 | Superuser | Ya | Ya | Ya | Ya | Ya |
 
-Editor ditentukan oleh keanggotaan grup bernama **`Editor`**, bukan username atau
-status staff. Tombol hanya membantu tampilan; izin tetap diperiksa oleh server.
-Beri/batalkan bintang dan hapus tetap menggunakan form POST tradisional dengan
-CSRF, seperti pola kartu Projects yang sudah ada. Setelah redirect, daftar AJAX
-memuat ulang status bintang terbaru. Ubah tetap membuka form lama. Operasi GET
-pada URL hapus tidak menghapus data, dan endpoint bintang hanya menerima POST
-untuk pengguna yang sudah login. Tidak ada perluasan hak pengguna biasa/Editor.
+Editor ditentukan berdasarkan keanggotaan pada grup bernama `Editor`, bukan berdasarkan username atau status staff.
+
+Tampilan tombol pada frontend hanya membantu user interface. Hak akses sebenarnya tetap diperiksa di backend sehingga pengguna tidak dapat memperoleh akses hanya dengan memodifikasi HTML atau URL.
+
+Fitur star/unstar dan delete tetap menggunakan request POST dengan CSRF.
+
+Edit Experience tetap menggunakan form edit yang sudah tersedia dari tugas sebelumnya.
 
 #### Menjalankan dan memeriksa Tugas 5
 
-Dari direktori proyek, gunakan environment lokal yang sudah disiapkan. Untuk
-instalasi baru, ikuti langkah virtual environment pada bagian setup sebelumnya.
+Untuk menjalankan project secara lokal:
 
 ```bash
 source env/bin/activate
@@ -868,166 +864,178 @@ python manage.py findstatic js/experience.js css/style.css
 python manage.py runserver 127.0.0.1:8000
 ```
 
-Tugas 5 tidak mengubah model dan tidak membutuhkan migration baru. Untuk tes
-browser, Chrome serta paket Selenium diperlukan:
+Tugas 5 tidak mengubah model sehingga tidak membutuhkan migration baru.
+
+Untuk menjalankan browser test:
 
 ```bash
 pip install selenium
+
 RUN_BROWSER_TESTS=1 python manage.py test --noinput
-# Khusus alur browser Experience:
+```
+
+Untuk hanya menjalankan test browser Experience:
+
+```bash
 RUN_BROWSER_TESTS=1 python manage.py test main.test_experience_browser --noinput
-# Jika driver yang kompatibel sudah ada di cache lokal:
+```
+
+Jika driver yang kompatibel sudah tersedia pada cache lokal:
+
+```bash
 SE_OFFLINE=true RUN_BROWSER_TESTS=1 python manage.py test --noinput
 ```
 
-Hasil verifikasi lokal pada 1 Oktober 2026:
+#### Hasil pengujian
 
-- `python manage.py check`: tidak ada masalah.
-- `python manage.py makemigrations --check --dry-run`: tidak ada perubahan model.
-- `python manage.py test --noinput`: **44 tes Django lulus**, 19 tes browser
-  dilewati karena bersifat opsional.
-- Dengan `RUN_BROWSER_TESTS=1`: **63 tes lulus**, mencakup 44 tes Django dan
-  19 tes browser. Di dalamnya terdapat sembilan tes backend baru dan sembilan
-  tes browser Experience; tes Projects dan desain sebelumnya tetap berjalan.
-- Pemeriksaan kompatibilitas Django **5.2**, sesuai `requirements.txt`: pemeriksaan
-  sistem bersih dan seluruh 44 tes backend lulus. Pengujian utama menggunakan
-  Django 6.1 yang terpasang di environment lokal; environment pengguna tidak diganti.
-- `runserver` lokal berhasil dimulai. Pemeriksaan HTTP pada halaman publik,
-  login/register, Experience, Projects, API lama/baru, JSON/XML, Admin (setelah
-  redirect), CSS, toast.js, dan experience.js memperoleh respons 200.
-- Static finder menunjuk berkas aplikasi yang benar. `git diff --check` bersih.
-- Screenshot daftar dan modal Experience diperiksa. Tes browser memeriksa ukuran
-  1440, 768, dan 390 piksel, fokus keyboard, reduced motion, serta error JavaScript.
+Hasil verifikasi lokal sebelum pengumpulan:
 
-Tes mencakup seluruh peran, pencarian, status bintang, izin tambah/ubah/hapus,
-respons invalid, CSRF, XSS tersimpan, URL gambar berbahaya, gambar gagal dimuat,
-modal, validasi per field, toast, submit ganda, koneksi gagal, sesi kedaluwarsa,
-dan pembaruan daftar tanpa memuat ulang dokumen. Payload
-`<img src="x" onerror="alert('XSS!')">` diuji hanya di database tes sementara:
-judul baru yang hanya berisi tag ditolak, sedangkan data lama tampil sebagai teks
-tanpa mengeksekusi alert. Akun dan database portofolio asli tidak diubah.
+- `python manage.py check` berhasil dijalankan tanpa masalah.
+- `python manage.py makemigrations --check --dry-run` menunjukkan bahwa tidak terdapat perubahan model yang membutuhkan migration baru.
+- `python manage.py test --noinput` menjalankan **44 tes Django** dengan hasil lulus, sedangkan 19 browser test dilewati karena bersifat opsional.
+- Dengan `RUN_BROWSER_TESTS=1`, seluruh **63 tes berhasil dijalankan**, terdiri dari 44 tes Django dan 19 browser test.
+- Pengujian mencakup fitur Experience baru serta memastikan fitur Projects dan fungsi dari tugas sebelumnya tetap berjalan.
+- `runserver` berhasil dijalankan secara lokal.
+- Static finder berhasil menemukan `experience.js` dan stylesheet yang digunakan aplikasi.
+- `git diff --check` telah diperiksa agar tidak terdapat masalah whitespace sebelum commit akhir.
 
-Selenium Manager sempat tertahan saat mencari driver; pengujian dilanjutkan
-menggunakan cache driver lokal dengan `SE_OFFLINE=true`. Node tidak tersedia
-untuk pemeriksaan sintaks terpisah; JavaScript dijalankan dan diperiksa melalui
-Chrome. Keduanya bukan alasan untuk menganggap tes yang tidak dijalankan lulus.
-Hasil di atas merupakan pengujian lokal, bukan verifikasi deployment PWS.
+Pengujian mencakup beberapa kondisi seperti:
+
+- pemuatan daftar Experience melalui AJAX,
+- pencarian dengan debouncing,
+- pencarian tanpa hasil,
+- pembatalan request lama,
+- star dan unstar,
+- validasi hak akses,
+- penambahan Experience melalui modal,
+- validasi form,
+- toast notification,
+- pencegahan submit ganda,
+- CSRF,
+- XSS,
+- URL gambar tidak aman,
+- kegagalan jaringan,
+- sesi yang sudah tidak berlaku,
+- serta pembaruan daftar tanpa reload halaman.
+
+Pengujian XSS menggunakan payload:
+
+```html
+<img src="x" onerror="alert('XSS!')">
+```
+
+Payload tersebut hanya digunakan pada database test sementara. Input berbahaya tidak dieksekusi sebagai JavaScript pada halaman.
+
+Browser test juga digunakan untuk memeriksa interaksi pada beberapa ukuran layar, navigasi keyboard, modal, dan kemungkinan error JavaScript.
+
+Pengujian ini dilakukan pada environment lokal sehingga hasilnya tidak secara otomatis membuktikan kondisi deployment PWS.
+
+---
 
 #### Pertanyaan Reflektif
 
 1. **Jelaskan apa itu debouncing dan mengapa teknik ini penting diterapkan pada fitur pencarian yang menggunakan AJAX!**
 
-   Debouncing adalah teknik menunda pemanggilan fungsi sampai tidak ada pemicu
-   baru selama selang waktu tertentu. Pada pencarian Experience di portofolio
-   saya, setiap ketikan membatalkan timer sebelumnya dan memulai timer baru
-   selama 300 ms. Jika saya mengetik beberapa huruf dengan cepat, permintaan
-   tidak langsung dikirim untuk setiap huruf, tetapi setelah jeda mengetik.
+   Debouncing adalah teknik menunda pemanggilan suatu fungsi sampai tidak ada input baru selama selang waktu tertentu. Pada fitur pencarian Experience di portofolio saya, setiap ketikan akan membatalkan timer sebelumnya dan membuat timer baru selama 300 ms.
 
-   Tanpa debouncing, pencarian AJAX dapat mengirim banyak permintaan yang
-   hasilnya sudah tidak diperlukan. Debouncing mengurangi beban server dan
-   lalu lintas jaringan sekaligus membuat perubahan hasil lebih nyaman dibaca.
-   Namun, debouncing saja tidak menjamin urutan respons. Karena itu, implementasi
-   ini juga memakai `AbortController` dan memeriksa permintaan aktif agar hasil
-   lama tidak menimpa pencarian terbaru. Enter atau tombol Cari tetap dapat
-   menjalankan pencarian langsung tanpa menunggu timer.
+   Jika pengguna mengetik beberapa huruf dengan cepat, request tidak langsung dikirim untuk setiap huruf. Request baru dikirim setelah pengguna berhenti mengetik selama kurang lebih 300 ms.
+
+   Tanpa debouncing, pencarian AJAX dapat mengirim banyak request ke server meskipun sebagian besar hasilnya sudah tidak dibutuhkan. Hal tersebut dapat menambah beban server dan penggunaan jaringan.
+
+   Dengan debouncing, jumlah request dapat dikurangi sehingga proses pencarian menjadi lebih efisien dan tampilan hasil juga terasa lebih stabil.
+
+   Pada implementasi ini, saya juga menggunakan `AbortController` untuk membatalkan request lama agar response sebelumnya tidak menggantikan hasil pencarian yang lebih baru.
 
 2. **Jelaskan fungsi dari penggunaan `await` ketika kita menggunakan `fetch()`! Apa yang akan terjadi jika kita tidak menggunakan `await`?**
 
-   `fetch()` mengembalikan Promise, bukan langsung objek respons yang sudah siap
-   digunakan. Di dalam fungsi `async`, `await fetch(...)` menunda kelanjutan
-   fungsi tersebut sampai Promise selesai, tanpa memblokir seluruh halaman.
-   Setelah memperoleh `Response`, saya masih perlu `await response.json()` karena
-   membaca dan mengubah isi respons menjadi data JavaScript juga asynchronous.
+   `fetch()` mengembalikan sebuah Promise, bukan langsung objek response yang sudah dapat digunakan.
 
-   Jika `await` dihilangkan dari `const response = fetch(...)`, variabel itu
-   berisi Promise. Kode yang langsung memanggil `response.json()` akan gagal
-   karena Promise tersebut bukan objek `Response`. `await` bukan satu-satunya
-   cara yang benar; `.then()` juga dapat digunakan asalkan urutan penanganannya
-   sesuai. Pada implementasi Experience, `try/catch` menangani kegagalan jaringan
-   atau pembacaan JSON. Status HTTP seperti 400 dan 403 tidak otomatis membuat
-   `fetch()` melempar error, sehingga status respons tetap harus diperiksa.
+   Ketika menggunakan:
+
+   ```javascript
+   const response = await fetch(url);
+   ```
+
+   `await` membuat eksekusi di dalam fungsi `async` menunggu sampai Promise dari `fetch()` selesai dan menghasilkan objek `Response`. Proses ini tidak memblokir seluruh halaman browser.
+
+   Setelah mendapatkan response, saya juga menggunakan:
+
+   ```javascript
+   const data = await response.json();
+   ```
+
+   karena proses membaca body response dan mengubahnya menjadi data JavaScript juga bersifat asynchronous.
+
+   Jika `await` tidak digunakan pada:
+
+   ```javascript
+   const response = fetch(url);
+   ```
+
+   maka variabel `response` masih berisi Promise. Jika kode langsung mencoba memanggil `response.json()`, maka akan terjadi error karena Promise bukan objek `Response`.
+
+   Selain `await`, Promise sebenarnya juga dapat ditangani menggunakan `.then()`, tetapi urutan asynchronous-nya tetap harus diatur dengan benar.
+
+   Pada implementasi Experience, `try/catch` juga digunakan untuk menangani gangguan jaringan atau kegagalan ketika membaca response. Selain itu, status HTTP tetap diperiksa karena response seperti 400 atau 403 tidak selalu menyebabkan `fetch()` langsung melempar error.
 
 3. **Jelaskan apa itu serangan XSS (Cross-Site Scripting) dan mengapa data yang ditampilkan melalui AJAX/JavaScript lebih rentan terhadap serangan ini daripada data yang ditampilkan langsung melalui template Django!**
 
-   XSS terjadi ketika input yang tidak dipercaya diperlakukan sebagai kode atau
-   markup aktif di browser. Contohnya, judul berisi elemen gambar dengan atribut
-   `onerror` dapat menjalankan JavaScript jika dimasukkan ke halaman melalui
-   `innerHTML` tanpa perlindungan. Dampaknya dapat mencakup manipulasi halaman
-   dan tindakan yang dijalankan dalam konteks pengguna.
+   XSS atau Cross-Site Scripting adalah serangan ketika input yang tidak dipercaya berhasil diperlakukan sebagai HTML atau JavaScript aktif di browser.
 
-   Template Django melakukan autoescaping pada variabel teks secara bawaan,
-   selama perlindungan tersebut tidak dimatikan atau dilewati. Sebaliknya,
-   JSON yang diterima melalui AJAX tidak melewati proses rendering template
-   Django ketika JavaScript membangun kartu. Jika pengembang menyisipkan nilainya
-   langsung sebagai HTML, perlindungan autoescaping template tidak ikut berlaku.
-   Jadi, AJAX tidak otomatis berbahaya; risikonya muncul dari cara merender data.
+   Contohnya, input seperti:
 
-   Pada Experience, saya menggunakan DOM dan `textContent` agar judul,
-   deskripsi, kategori, serta error diperlakukan sebagai teks biasa. URL gambar
-   diperiksa terpisah karena escaping teks tidak cukup untuk mengamankan konteks
-   URL. `strip_tags` pada server menjadi lapisan pembersihan tambahan, tetapi
-   rendering aman tetap diperlukan untuk data lama maupun data dari jalur lain.
-   CSRF melindungi permintaan perubahan data dengan mekanisme berbeda dan tidak
-   menggantikan perlindungan XSS.
+   ```html
+   <img src="x" onerror="alert('XSS!')">
+   ```
+
+   dapat menjalankan JavaScript apabila nilai tersebut langsung dimasukkan ke halaman menggunakan `innerHTML` tanpa perlindungan.
+
+   Template Django secara default melakukan autoescaping terhadap variabel yang ditampilkan melalui template. Artinya, karakter HTML berbahaya biasanya akan ditampilkan sebagai teks biasa selama mekanisme autoescaping tidak dimatikan.
+
+   Pada AJAX, data biasanya diterima dalam bentuk JSON kemudian dirender sendiri menggunakan JavaScript. Karena proses tersebut tidak melewati template Django, developer harus memastikan sendiri bagaimana data tersebut dimasukkan ke DOM.
+
+   Jika data langsung dimasukkan menggunakan `innerHTML`, input berbahaya dapat diinterpretasikan sebagai markup aktif. Karena itu, pada Experience saya menggunakan DOM API dan `textContent` agar judul, deskripsi, kategori, maupun error selalu diperlakukan sebagai teks.
+
+   URL gambar juga diperiksa secara terpisah karena escaping teks saja tidak cukup untuk mengamankan nilai yang digunakan sebagai URL.
+
+   Selain itu, `strip_tags()` digunakan pada backend sebagai lapisan tambahan untuk membersihkan input. Namun, validasi server tetap tidak menggantikan kebutuhan untuk melakukan rendering secara aman di browser.
+
+   CSRF dan XSS merupakan dua jenis serangan yang berbeda. CSRF melindungi request perubahan data agar berasal dari sumber yang valid, sedangkan perlindungan XSS berfokus pada mencegah data tidak dipercaya dijalankan sebagai kode pada browser.
+
+---
 
 #### Pengungkapan Penggunaan AI Tugas 5
 
-**Chat GPT** membantu mengimplementasikan endpoint/form/JavaScript/modal Experience,
-menyusun dan menjalankan tes Django, memperbaiki hasil pengujian, dan memperbaiki draf dokumentasi serta jawaban reflektif.
-Bantuan ini berupa pemberian ide. Catatan ChatGPT
-pada tugas sebelumnya tetap dipertahankan; tidak ada penggunaan alat AI lain
-untuk Tugas 5 yang diklaim tanpa bukti.
+Dalam pengerjaan Tugas 5, saya menggunakan **ChatGPT** dan **OpenAI Codex** sebagai alat bantu dalam proses pengembangan.
 
-**Strategi dan catatan prompt:** pemilik memberikan PDF resmi dan konteks proyek
-yang sudah ada, menetapkan Experience sebagai bagian tugas, meminta seluruh pola
-Tutorial 05 diterapkan tanpa merusak Projects, serta melarang push/deployment/
-pengumpulan otomatis. Prompt tambahan menegaskan dokumentasi dan teks baru harus
-berbahasa Indonesia serta pengalaman pribadi tidak boleh dikarang. Ringkasan
-ini berasal dari instruksi nyata dalam sesi pengerjaan, bukan percakapan buatan.
+ChatGPT digunakan untuk membantu memahami requirement tugas, mendiskusikan konsep seperti AJAX, Fetch API, debouncing, CSRF, dan XSS, serta membantu meninjau dokumentasi dan jawaban reflektif.
 
-Dua kutipan instruksi tambahan yang digunakan:
+OpenAI Codex digunakan untuk membantu implementasi beberapa bagian teknis, seperti pengembangan endpoint AJAX Experience, pencarian, modal penambahan Experience, validasi, pengujian, serta perbaikan kode berdasarkan hasil pengujian.
 
-> Seluruh dokumentasi Individual Assignment 5 WAJIB menggunakan **BAHASA INDONESIA**.
+Dalam proses pengerjaan, saya memberikan konteks mengenai struktur project yang sudah ada, requirement resmi Tugas 5, serta ketentuan agar fitur dari Tutorial 05 dan Tugas sebelumnya tetap berjalan.
 
-> Jika ada bagian refleksi yang membutuhkan pengalaman pribadi saya, tandai untuk saya tinjau dan jangan mengarang jawaban.
+Hasil yang diberikan oleh AI tetap diperiksa melalui pengujian Django dan browser, serta disesuaikan kembali dengan struktur project, kebutuhan fitur, dan aturan hak akses yang sudah diterapkan sebelumnya.
 
-**Penyesuaian dan verifikasi:** hasil implementasi disesuaikan dengan hak Editor
-yang hanya boleh mengubah Experience, API serializer lama tetap dipisahkan, dan
-`started_at` tidak disalahartikan sebagai tanggal mulai kegiatan. Pengujian juga
-menemukan bahwa pesan validasi bawaan masih dapat berbahasa Inggris; pesan error
-Experience kemudian ditetapkan secara eksplisit dalam bahasa Indonesia. Tes
-browser disesuaikan agar menunggu animasi toast dan pergantian DOM setelah
-redirect, bukan menganggap perubahan tersebut sebagai kegagalan aplikasi.
-Perbaikan dan verifikasi ini dilakukan oleh Codex dalam sesi ini, **bukan klaim
-bahwa pemilik telah melakukan koreksi atau pengujian manual sendiri**.
+AI digunakan sebagai alat bantu selama proses pengembangan dan debugging, bukan sebagai pengganti proses memahami requirement dan memeriksa hasil implementasi.
 
-**Keterbatasan:** tes lokal tidak membuktikan konfigurasi produksi, akses publik
-GitHub, atau penerimaan pengumpulan di SCELE. Pencegahan submit ganda belum
-menjamin idempotensi jaringan. Penggunaan Popover API membutuhkan browser modern.
-Pemilik tetap perlu memahami perubahan dan memeriksa hasil pada akun yang dipilih.
+---
 
 #### Progres Minggu 5 dan pemeriksaan sebelum pengumpulan
 
-Progres lokal dibagi menjadi tahap backend/API dan validasi; daftar AJAX dan
-pencarian; modal tambah beserta error/toast; penguatan pemeriksaan respons serta
-tes; lalu dokumentasi bahasa Indonesia dan verifikasi akhir. Setiap tahap
-menggunakan commit baru tanpa mengubah riwayat Tutorial 05 atau makeover.
+Pengerjaan Tugas 5 dilakukan secara bertahap, dimulai dari pengembangan backend dan endpoint AJAX Experience, implementasi daftar dan pencarian, pembuatan modal tambah Experience, validasi dan toast notification, penguatan keamanan CSRF/XSS, pengujian, hingga dokumentasi akhir.
 
-Pemeriksaan manual yang dapat dilakukan pemilik setelah menjalankan server:
+Pemeriksaan manual sebelum pengumpulan:
 
-1. Buka `http://127.0.0.1:8000/experience/` tanpa login. Cari judul yang ada dan
-   tidak ada; kosongkan pencarian. Pastikan daftar berubah tanpa memuat ulang.
-2. Pada DevTools, perhatikan permintaan `/api/experience/list/?title=...` setelah
-   jeda mengetik. Simulasikan jaringan offline lalu cari; setelah online kembali,
-   tekan Coba lagi.
-3. Masuk sebagai pengguna biasa. Beri dan batalkan bintang; cari kembali kartu
-   tersebut untuk memeriksa jumlah/statusnya. Tombol tambah, ubah, dan hapus
-   tidak tersedia untuk peran ini.
-4. Masuk sebagai anggota grup Editor. Pastikan Ubah tersedia, sedangkan Tambah
-   dan Hapus tidak. Gunakan akun uji pilihan sendiri; jangan mengubah peran akun
-   lain hanya untuk mencoba fitur.
-5. Masuk sebagai superuser. Buka modal, coba isian kosong atau URL tidak valid,
-   lalu perbaiki. Pastikan error berbahasa Indonesia, input tetap ada ketika
-   gagal, dan keberhasilan menutup modal serta menampilkan toast.
-6. Coba Tab/Shift+Tab, Escape, Batal, dan ukuran layar kecil. Pastikan fokus
-   kembali ke tombol Tambah setelah modal ditutup. Tinjau juga alur Projects.
+1. Buka `http://127.0.0.1:8000/experience/` tanpa login. Coba mencari judul Experience yang tersedia dan yang tidak tersedia, kemudian kosongkan kembali pencarian. Daftar seharusnya berubah tanpa melakukan reload seluruh halaman.
+
+2. Periksa request `/api/experience/list/?title=...` melalui DevTools ketika mengetik pada kolom pencarian. Request baru seharusnya dikirim setelah jeda kurang lebih 300 ms.
+
+3. Login sebagai pengguna biasa. Coba fitur star dan unstar pada Experience. Pengguna biasa tidak memiliki tombol tambah, ubah, atau hapus.
+
+4. Login sebagai anggota grup Editor. Editor dapat mengubah Experience, tetapi tidak dapat menambah atau menghapus Experience.
+
+5. Login sebagai superuser. Buka modal Tambah Pengalaman dan coba submit form dengan data tidak valid. Error harus muncul pada modal dan nilai input tetap dipertahankan. Setelah data valid berhasil disimpan, modal akan tertutup, toast berhasil ditampilkan, dan daftar Experience diperbarui.
+
+6. Uji penggunaan keyboard pada modal menggunakan Tab, Shift+Tab, Escape, dan tombol Batal. Setelah modal ditutup, fokus harus kembali ke tombol Tambah Pengalaman.
+
+7. Periksa kembali halaman Projects untuk memastikan fitur dari Tutorial 05 masih berjalan setelah implementasi AJAX pada Experience.
