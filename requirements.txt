@@ -1,4 +1,5 @@
-django==5.2
+django~=5.2
 gunicorn
 whitenoise
 djangorestframework~=3.18.3
+psycopg2-binary

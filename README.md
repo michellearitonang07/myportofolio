@@ -318,15 +318,25 @@ python manage.py runserver
 
 CSS berada di `main/static/css/style.css` dan ditemukan melalui app static
 finder. Tidak perlu menambahkan direktori yang sama ke `STATICFILES_DIRS`.
-Untuk deployment, jalankan `python manage.py collectstatic --noinput` setelah
-perubahan CSS; hasil `staticfiles/` tidak boleh di-commit. Jika browser masih
-menampilkan stylesheet lama, lakukan hard refresh.
+Di environment PWS, jalankan `python manage.py migrate --noinput` terhadap
+database PWS dan `python manage.py collectstatic --noinput` sebelum aplikasi
+menerima traffic. Jalankan keduanya dengan konfigurasi environment PWS; hasil
+`staticfiles/` tidak boleh di-commit. Jika browser masih menampilkan stylesheet
+lama, lakukan hard refresh.
 
-Konfigurasi menggunakan environment proses:
+Konfigurasi membaca environment proses, bukan berkas `.env`:
 
-- `DJANGO_DEBUG` default `true` untuk pengembangan lokal; set `false` saat deploy.
+- `PRODUCTION`: default `false` untuk lokal. PWS harus mengirim `PRODUCTION=True`;
+  mode ini memakai PostgreSQL PWS dan memaksa `DEBUG=False`.
+- `DJANGO_DEBUG`: default `true` di lokal dan dapat diset `false` untuk pemeriksaan
+  production-like. `PRODUCTION=True` selalu menonaktifkan `DEBUG`, sekalipun nilai
+  `DJANGO_DEBUG` lain ikut tersetel.
 - `DJANGO_SECRET_KEY`: gunakan secret acak yang stabil di environment deployment.
-  Saat debug mati, server menolak startup jika nilai ini tidak disediakan.
+  Saat production aktif atau debug mati, server menolak startup jika nilai ini
+  tidak disediakan.
+- Environment PWS juga harus memiliki `DB_NAME`, `DB_USER`, `DB_PASSWORD`,
+  `DB_HOST`, `DB_PORT`, dan `SCHEMA` dari konfigurasi PWS. Untuk Tutorial 07,
+  gunakan schema `tutorial`; jangan simpan nilai credential dalam Git.
 - Tanpa secret pada mode lokal, Django menggunakan secret acak per proses,
   sehingga session lama tidak bertahan setelah restart. Untuk session lokal yang
   stabil selama terminal yang sama, jalankan sebelum server:
@@ -335,10 +345,8 @@ Konfigurasi menggunakan environment proses:
 export DJANGO_SECRET_KEY="$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')"
 ```
 
-Settings aplikasi tidak otomatis membaca `.env`; gunakan environment terminal
-atau konfigurasi platform deployment. `.env` hanya dibaca skrip Selenium.
-Pada deployment HTTPS (`DJANGO_DEBUG=false`), session dan CSRF cookie memakai
-`Secure`. Host localhost dan domain PWS proyek tetap diizinkan secara eksplisit.
+Pada deployment HTTPS, session dan CSRF cookie memakai `Secure`. Host PWS
+proyek `michelle-yuyun-myportofolio.pbp.cs.ui.ac.id` tercantum secara eksplisit.
 Secret lama pernah berada di kode Git; penghapusan dari settings tidak menghapus
 riwayat. Gunakan secret baru di deployment, jangan gunakan kembali nilai lama.
 
