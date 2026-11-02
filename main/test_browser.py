@@ -80,7 +80,7 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         self.seed_project('Other project')
         self.open_projects()
         self.assertEqual(len(self.browser.find_elements('css selector', '#grid article')), 2)
-        self.assertEqual(self.browser.find_elements('css selector', '.project-delete-form'), [])
+        self.assertEqual(self.browser.find_elements('css selector', 'button[data-action="delete"]'), [])
         self.browser.execute_script("""
             window.pageMarker = 'same-document';
             window.projectRequests = [];
@@ -137,7 +137,7 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         """)
         self.wait.until(lambda d: d.find_element('id', 'empty').is_displayed())
         self.browser.execute_script("""
-            pendingFetches[0]({ok: true, json: async () => [{pk: '00000000-0000-0000-0000-000000000001', fields: {title: 'STALE'}}]});
+            pendingFetches[0]({ok: true, json: async () => [{id: '00000000-0000-0000-0000-000000000001', title: 'STALE'}]});
         """)
         time.sleep(0.2)
         self.assertTrue(self.browser.find_element('id', 'empty').is_displayed())
@@ -150,9 +150,11 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         project = self.seed_project(payload, description=payload, tech_stack=payload, project_url='javascript:alert(1)')
         user = User.objects.create_user('" onmouseover="alert(1)')
         project.starred_by.add(user)
+        self.login_browser()
         self.open_projects()
         self.assertIn(payload, self.browser.find_element('css selector', '#grid h2').text)
-        self.assertEqual(self.browser.find_elements('css selector', '#grid img, #grid script, #grid a'), [])
+        self.assertEqual(self.browser.find_elements('css selector', '#grid img, #grid script'), [])
+        self.assertEqual(self.browser.find_elements('css selector', '#grid a[href^="javascript:"]'), [])
         button = self.browser.find_element('css selector', '#grid .button-star')
         self.assertEqual(button.get_attribute('title'), 'Dibintangi oleh ' + user.username)
         self.assertIsNone(button.get_attribute('onmouseover'))
@@ -181,7 +183,7 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         self.wait.until(lambda d: '/login/?next=' in d.current_url)
         self.login_browser()
         self.open_projects()
-        self.assertEqual(self.browser.find_elements('css selector', '.project-delete-form'), [])
+        self.assertEqual(self.browser.find_elements('css selector', 'button[data-action="delete"]'), [])
         self.browser.find_element('css selector', '#grid .button-star').click()
         self.wait.until(lambda d: 'Unstar' in d.find_element('css selector', '#grid .button-star').text)
         self.assertEqual(project.starred_by.count(), 1)
@@ -191,10 +193,10 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         self.wait.until(lambda d: not d.find_elements('css selector', '.nav-user'))
         self.login_browser(superuser=True)
         self.open_projects()
-        self.browser.find_element('css selector', '.project-delete-form button').click()
+        self.browser.find_element('css selector', 'button[data-action="delete"]').click()
         self.browser.switch_to.alert.dismiss()
         self.assertTrue(Project.objects.filter(pk=project.pk).exists())
-        self.browser.find_element('css selector', '.project-delete-form button').click()
+        self.browser.find_element('css selector', 'button[data-action="delete"]').click()
         self.browser.switch_to.alert.accept()
         self.wait.until(lambda d: d.find_element('id', 'empty').is_displayed())
         self.assertFalse(Project.objects.filter(pk=project.pk).exists())
@@ -269,11 +271,11 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         events = [json.loads(entry['message'])['message'] for entry in self.browser.get_log('performance')]
         requests = [event['params']['request'] for event in events if event['method'] == 'Network.requestWillBeSent']
         responses = [event['params']['response'] for event in events if event['method'] == 'Network.responseReceived']
-        self.assertTrue(any(request['method'] == 'POST' and '/projects/add-ajax/' in request['url'] and
+        self.assertTrue(any(request['method'] == 'POST' and '/api/v1/projects/' in request['url'] and
                             any(key.lower() == 'x-csrftoken' and bool(value) for key, value in request['headers'].items())
                             for request in requests))
-        self.assertTrue(any('/projects/add-ajax/' in response['url'] and response['status'] == 201 for response in responses))
-        self.assertTrue(any('/api/projects/?title=Django' in response['url'] and response['status'] == 200 for response in responses))
+        self.assertTrue(any('/api/v1/projects/' in response['url'] and response['status'] == 201 for response in responses))
+        self.assertTrue(any('/api/v1/projects/?title=Django' in response['url'] and response['status'] == 200 for response in responses))
         self.screenshot('projects-success.png')
         # A created item that does not match the filter must not appear in the filtered grid.
         self.open_create_form(title='Unrelated created')
@@ -301,7 +303,7 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
                             event['params']['response']['status'] == 400 for event in events))
         for title, url, expected in [
             ('Valid title', 'javascript:alert(1)', 'Enter a valid URL.'),
-            ('<img src="x" onerror="alert(\'XSS!\')">', 'https://example.com/', 'Nama proyek tidak boleh'),
+            ('<img src="x" onerror="alert(\'XSS!\')">', 'https://example.com/', 'Title cannot be empty.'),
         ]:
             for name, value in [('title', title), ('project_url', url)]:
                 field = self.browser.find_element('css selector', f'#project-form [name={name}]')
@@ -342,7 +344,7 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         self.browser.execute_script('window.fetch = window.originalFetch')
         self.browser.delete_cookie('sessionid')
         self.browser.find_element('css selector', '#project-form button[type=submit]').click()
-        self.wait.until(lambda d: 'Hanya pemilik' in d.find_element('id', 'toast-message').text)
+        self.wait.until(lambda d: 'Only the portfolio owner' in d.find_element('id', 'toast-message').text)
         self.assertTrue(self.browser.find_element('id', 'add-project-modal').is_displayed())
         self.assertEqual(Project.objects.count(), 0)
         self.assert_no_js_errors()

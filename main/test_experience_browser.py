@@ -100,7 +100,7 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
         for response in ['Promise.reject(new TypeError("offline"))',
                          'Promise.resolve({ok:false,status:503})',
                          'Promise.resolve({ok:true,json:async()=>{throw new Error("html")}})',
-                         'Promise.resolve({ok:true,json:async()=>[{pk:"salah",fields:{}}]})']:
+                         'Promise.resolve({ok:true,json:async()=>[{id:"salah"}]})']:
             self.browser.execute_script('window.fetch=()=> ' + response)
             self.search('')
             self.wait.until(lambda d: d.find_element('id', 'experience-error').is_displayed())
@@ -134,14 +134,14 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
 
     def test_roles_star_edit_delete_and_authenticated_refresh(self):
         self.open_page()
-        self.assertEqual(self.browser.find_elements('css selector', '.experience-edit, .experience-delete-form'), [])
+        self.assertEqual(self.browser.find_elements('css selector', '.experience-edit, button[data-action="delete"]'), [])
         self.browser.find_element('css selector', '#experience-grid .button-star').click()
         self.wait.until(lambda d: '/login/?next=' in d.current_url)
         for role in ['reader', 'editor', 'owner']:
             self.login(role)
             self.open_page()
             self.assertEqual(bool(self.browser.find_elements('css selector', '.experience-edit')), role != 'reader')
-            self.assertEqual(bool(self.browser.find_elements('css selector', '.experience-delete-form')), role == 'owner')
+            self.assertEqual(bool(self.browser.find_elements('css selector', 'button[data-action="delete"]')), role == 'owner')
             self.browser.find_element('css selector', '#experience-grid .button-star').click()
             self.wait.until(lambda d: d.find_element('css selector', '#experience-grid .button-star').get_attribute('aria-pressed') == 'true')
             self.search('Kampus')
@@ -159,10 +159,10 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
                 submit.click()
                 self.wait.until(lambda d: 'Diperbarui' in d.find_element('css selector', '#experience-grid h2').text)
             if role == 'owner':
-                self.browser.find_element('css selector', '.experience-delete-form button').click()
+                self.browser.find_element('css selector', 'button[data-action="delete"]').click()
                 self.browser.switch_to.alert.dismiss()
                 self.assertTrue(Experience.objects.filter(pk=self.experience.pk).exists())
-                self.browser.find_element('css selector', '.experience-delete-form button').click()
+                self.browser.find_element('css selector', 'button[data-action="delete"]').click()
                 self.browser.switch_to.alert.accept()
                 self.wait.until(lambda d: d.find_element('id', 'experience-empty').is_displayed())
                 self.assertFalse(Experience.objects.filter(pk=self.experience.pk).exists())
@@ -190,7 +190,7 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
             window.pageMarker='tetap'; window.realFetch=fetch; window.postInfo=[];
             window.fetch=async (...args)=>{
                 const response=await realFetch(...args);
-                if(args[1]?.method==='POST') postInfo.push({status:response.status,csrf:!!args[1].body.get('csrfmiddlewaretoken')});
+                if(args[1]?.method==='POST') postInfo.push({status:response.status,csrf:!!args[1].headers['X-CSRFToken']});
                 return response;
             };
         """)
@@ -229,7 +229,7 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(self.browser.find_elements('css selector', '#experience-form img'), [])
         self.browser.execute_script("""
             window.realFetch=fetch;
-            window.fetch=async()=>({status:400,json:async()=>({errors:{description:[{message:'<img src=x onerror=alert(1)>'}]}})});
+            window.fetch=async()=>({ok:false,status:400,json:async()=>({description:['<img src=x onerror=alert(1)>']})});
         """)
         self.submit_modal()
         self.wait.until(lambda d: '<img' in d.find_element('id', 'id_description_errors').text)
@@ -256,7 +256,7 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(self.browser.execute_script('return postCount'), 1)
         self.assertFalse(self.browser.find_element('css selector', '#experience-form button[type=submit]').is_enabled())
         self.browser.execute_script('finish({status:500,json:async()=>{throw new Error("HTML")}})')
-        self.wait.until(lambda d: 'Respons server' in d.find_element('id', 'experience-form-errors').text)
+        self.wait.until(lambda d: 'Permintaan gagal (500)' in d.find_element('id', 'experience-form-errors').text)
         self.assertTrue(self.browser.find_element('id', 'add-experience-modal').is_displayed())
         self.browser.execute_script('window.fetch=()=>Promise.reject(new TypeError("offline"))')
         self.submit_modal()

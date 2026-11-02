@@ -185,7 +185,7 @@ class TutorialAuthTests(TestCase):
         for path in ['/json/', f'/json/{self.project.pk}/']:
             fields = self.client.get(path).json()[0]['fields']
             self.assertEqual(fields['starred_by'], [['reader']])
-            self.assertEqual(set(fields), {'title', 'description', 'tech_stack', 'project_url', 'starred_by'})
+            self.assertEqual(set(fields), {'title', 'description', 'tech_stack', 'project_url', 'project_image_url', 'starred_by'})
         for path in ['/xml/', f'/xml/{self.project.pk}/']:
             response = self.client.get(path)
             self.assertContains(response, '<natural>reader</natural>')

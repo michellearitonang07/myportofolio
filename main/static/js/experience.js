@@ -24,38 +24,29 @@
         results.setAttribute('aria-busy', String(state === 'loading'));
     }
 
-    function postForm(url, className) {
-        const form = element('form', className);
-        form.method = 'post';
-        form.action = url;
-        form.append(document.getElementById('experience-csrf-token').content.firstElementChild.cloneNode(true));
-        return form;
-    }
-
     function dateText(value) {
         return new Intl.DateTimeFormat('id-ID', {dateStyle: 'medium', timeZone: 'Asia/Jakarta'}).format(new Date(value));
     }
 
-    function buildCard(item) {
-        const fields = item?.fields;
-        if (typeof item?.pk !== 'string' || !uuidPattern.test(item.pk) || !fields ||
-            !['title', 'description', 'category', 'category_label', 'started_at'].every(key => typeof fields[key] === 'string') ||
-            !Number.isFinite(Date.parse(fields.started_at)) ||
-            !(fields.ended_at === null || (typeof fields.ended_at === 'string' && Number.isFinite(Date.parse(fields.ended_at)))) ||
-            !(fields.thumbnail === null || typeof fields.thumbnail === 'string') ||
-            typeof fields.is_ongoing !== 'boolean' || typeof fields.is_starred !== 'boolean' ||
-            !Number.isSafeInteger(fields.star_count) || fields.star_count < 0) {
+    function buildCard(project) {
+        if (typeof project?.id !== 'string' || !uuidPattern.test(project.id) ||
+            !['title', 'description', 'category', 'category_label', 'started_at'].every(key => typeof project[key] === 'string') ||
+            !Number.isFinite(Date.parse(project.started_at)) ||
+            !(project.ended_at === null || (typeof project.ended_at === 'string' && Number.isFinite(Date.parse(project.ended_at)))) ||
+            !(project.thumbnail === null || typeof project.thumbnail === 'string') ||
+            typeof project.is_ongoing !== 'boolean' || typeof project.is_starred !== 'boolean' ||
+            !Number.isSafeInteger(project.star_count) || project.star_count < 0) {
             throw new Error('Format data pengalaman tidak valid.');
         }
         const article = element('article', 'experience-card');
-        article.dataset.experienceId = item.pk;
+        article.dataset.experienceId = project.id;
         const body = element('div', 'experience-card__body');
-        if (fields.thumbnail) {
+        if (project.thumbnail) {
             try {
-                const url = new URL(fields.thumbnail);
+                const url = new URL(project.thumbnail);
                 if (['http:', 'https:'].includes(url.protocol) && !url.username && !url.password) {
                     const image = element('img', 'experience-thumbnail');
-                    image.alt = `Gambar pengalaman: ${fields.title}`;
+                    image.alt = `Gambar pengalaman: ${project.title}`;
                     image.loading = 'lazy';
                     image.referrerPolicy = 'no-referrer';
                     image.addEventListener('error', () => image.remove(), {once: true});
@@ -64,37 +55,40 @@
                 }
             } catch (_) { /* URL gambar lama yang tidak valid tidak menghalangi kartu lain. */ }
         }
-        body.append(element('span', 'experience-category', fields.category_label));
-        body.append(element('h2', '', fields.title));
-        body.append(element('p', 'experience-description', fields.description));
-        body.append(element('p', 'experience-status' + (fields.is_ongoing ? ' is-ongoing' : ''), fields.is_ongoing ? 'Sedang berlangsung' : 'Selesai'));
+        body.append(element('span', 'experience-category', project.category_label));
+        body.append(element('h2', '', project.title));
+        body.append(element('p', 'experience-description', project.description));
+        body.append(element('p', 'experience-status' + (project.is_ongoing ? ' is-ongoing' : ''), project.is_ongoing ? 'Sedang berlangsung' : 'Selesai'));
         // started_at merupakan waktu pencatatan otomatis, bukan tanggal mulai kegiatan.
-        const dates = element('p', 'experience-dates', `Dicatat ${dateText(fields.started_at)}`);
-        if (fields.ended_at) dates.append(document.createTextNode(` · Selesai ${dateText(fields.ended_at)}`));
+        const dates = element('p', 'experience-dates', `Dicatat ${dateText(project.started_at)}`);
+        if (project.ended_at) dates.append(document.createTextNode(` · Selesai ${dateText(project.ended_at)}`));
         body.append(dates);
         const actions = element('div', 'card-actions');
-        const starForm = postForm(page.dataset.starUrl.replace(dummyUUID, item.pk), 'star-form');
-        const starButton = element('button', 'button button-star' + (fields.is_starred ? ' is-starred' : ''), fields.is_starred ? '★ Batal bintang ' : '☆ Beri bintang ');
-        starButton.type = 'submit';
-        starButton.setAttribute('aria-pressed', String(fields.is_starred));
-        starButton.setAttribute('aria-label', `${fields.is_starred ? 'Batalkan bintang untuk' : 'Beri bintang untuk'} ${fields.title}`);
-        starButton.append(element('span', 'star-count', fields.star_count));
-        starForm.append(starButton);
-        actions.append(starForm);
+        if (page.dataset.isAuthenticated === 'true') {
+            const starButton = element('button', 'button button-star' + (project.is_starred ? ' is-starred' : ''), project.is_starred ? '★ Batal bintang ' : '☆ Beri bintang ');
+            starButton.type = 'button';
+            starButton.dataset.action = 'star';
+            starButton.dataset.id = project.id;
+            starButton.setAttribute('aria-pressed', String(project.is_starred));
+            starButton.setAttribute('aria-label', `${project.is_starred ? 'Batalkan bintang untuk' : 'Beri bintang untuk'} ${project.title}`);
+            starButton.append(element('span', 'star-count', project.star_count));
+            actions.append(starButton);
+        } else {
+            const loginLink = element('a', 'button button-star', `Masuk untuk memberi bintang (${project.star_count})`);
+            loginLink.href = `/login/?next=${encodeURIComponent(location.pathname + location.search)}`;
+            actions.append(loginLink);
+        }
         if (page.dataset.canEdit === 'true') {
             const edit = element('a', 'btn btn-outline experience-edit', 'Ubah');
-            edit.href = page.dataset.editUrl.replace(dummyUUID, item.pk);
+            edit.href = page.dataset.editUrl.replace(dummyUUID, project.id);
             actions.append(edit);
         }
         if (page.dataset.canDelete === 'true') {
-            const form = postForm(page.dataset.deleteUrl.replace(dummyUUID, item.pk), 'experience-delete-form');
             const button = element('button', 'btn btn-danger', 'Hapus');
-            button.type = 'submit';
-            form.append(button);
-            form.addEventListener('submit', event => {
-                if (!confirm('Apakah kamu yakin ingin menghapus pengalaman ini?')) event.preventDefault();
-            });
-            actions.append(form);
+            button.type = 'button';
+            button.dataset.action = 'delete';
+            button.dataset.id = project.id;
+            actions.append(button);
         }
         article.append(body, actions);
         return article;
@@ -140,6 +134,63 @@
     document.getElementById('retry-experience').addEventListener('click', () => {
         clearTimeout(searchTimer);
         fetchExperiences();
+    });
+
+    function getCookie(name) {
+        const prefix = `${name}=`;
+        const cookie = document.cookie.split(';').map(value => value.trim())
+            .find(value => value.startsWith(prefix));
+        return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+    }
+
+    async function writeExperience(url, method, payload) {
+        const options = {
+            method,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken') || '',
+            },
+        };
+        if (payload !== undefined) options.body = JSON.stringify(payload);
+        const response = await fetch(url, options);
+        if (response.status === 204) return null;
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const messages = Object.values(data || {}).flatMap(value => Array.isArray(value) ? value : [value])
+                .filter(value => typeof value === 'string');
+            const error = new Error(typeof data?.detail === 'string' ? data.detail : messages.join(' ') || `Permintaan gagal (${response.status}).`);
+            error.data = data;
+            throw error;
+        }
+        return data;
+    }
+
+    grid.addEventListener('click', async event => {
+        const button = event.target.closest('button[data-action]');
+        if (!button || button.disabled) return;
+        const {action, id} = button.dataset;
+        if (!uuidPattern.test(id || '')) return;
+        if (action === 'delete' && !window.confirm('Apakah kamu yakin ingin menghapus pengalaman ini?')) return;
+        button.disabled = true;
+        try {
+            const endpoint = action === 'star'
+                ? page.dataset.starUrl.replace(dummyUUID, id)
+                : page.dataset.deleteUrl.replace(dummyUUID, id);
+            const updated = await writeExperience(endpoint, action === 'star' ? 'POST' : 'DELETE');
+            if (action === 'star') {
+                const card = buildCard(updated);
+                button.closest('.experience-card').replaceWith(card);
+                showToast('Berhasil', 'Status bintang diperbarui.', 'success');
+            } else {
+                button.closest('.experience-card').remove();
+                if (!grid.children.length) displayState('empty');
+                showToast('Berhasil', 'Pengalaman berhasil dihapus.', 'success');
+            }
+        } catch (error) {
+            button.disabled = false;
+            showToast('Permintaan gagal', error.message || 'Silakan coba lagi.', 'error');
+        }
     });
     const modal = document.getElementById('add-experience-modal');
     const form = document.getElementById('experience-form');
@@ -197,12 +248,13 @@
                 for (const [name, entries] of Object.entries(errors)) {
                     if (!Array.isArray(entries)) continue;
                     for (const error of entries) {
-                        if (typeof error?.message !== 'string') continue;
-                        messages.push(error.message);
+                        const message = typeof error === 'string' ? error : error?.message;
+                        if (typeof message !== 'string') continue;
+                        messages.push(message);
                         if (fieldNames.includes(name)) {
                             const input = form.elements.namedItem(name);
                             input.setAttribute('aria-invalid', 'true');
-                            document.getElementById(`${input.id}_errors`).append(element('li', '', error.message));
+                            document.getElementById(`${input.id}_errors`).append(element('li', '', message));
                         }
                     }
                 }
@@ -217,18 +269,22 @@
             submitting = true;
             clearErrors();
             // Ambil FormData sebelum fieldset dinonaktifkan agar seluruh isian dan CSRF ikut dikirim.
-            const body = new FormData(form);
+            const fields = new FormData(form);
+            const body = {
+                title: fields.get('title'),
+                description: fields.get('description'),
+                category: fields.get('category'),
+                thumbnail: fields.get('thumbnail') || '',
+                ended_at: fields.get('ended_at') || null,
+            };
             fieldset.disabled = true;
             submitButton.disabled = true;
             submitButton.textContent = 'Menyimpan...';
             form.setAttribute('aria-busy', 'true');
             let failed = false;
             try {
-                const response = await fetch(form.dataset.createUrl, {
-                    method: 'POST', headers: {'Accept': 'application/json'}, body,
-                });
-                const result = await response.json().catch(() => null);
-                if (response.status === 201 && typeof result?.pk === 'string' && uuidPattern.test(result.pk)) {
+                const result = await writeExperience(form.dataset.createUrl, 'POST', body);
+                if (typeof result?.id === 'string' && uuidPattern.test(result.id)) {
                     form.reset();
                     modal.hidePopover();
                     showToast('Berhasil', 'Pengalaman berhasil ditambahkan. Daftar diperbarui sesuai pencarian aktif.', 'success');
@@ -236,14 +292,14 @@
                     await fetchExperiences();
                 } else {
                     failed = true;
-                    const fallback = response.status === 403
-                        ? 'Akses ditolak atau sesi/token CSRF tidak berlaku. Muat ulang halaman dan masuk dengan akun yang berhak.'
-                        : 'Respons server tidak sesuai. Periksa daftar sebelum mencoba menyimpan kembali.';
-                    displayErrors(result?.errors, typeof result?.message === 'string' ? result.message : fallback);
+                    displayErrors(null, 'Respons server tidak sesuai. Periksa daftar sebelum mencoba menyimpan kembali.');
                 }
-            } catch (_) {
+            } catch (error) {
                 failed = true;
-                displayErrors(null, 'Koneksi terputus. Isian tetap tersimpan di form. Periksa daftar sebelum mencoba lagi agar data tidak terduplikasi.');
+                const fallback = error instanceof TypeError
+                    ? 'Koneksi terputus. Isian tetap tersimpan di form. Periksa daftar sebelum mencoba lagi agar data tidak terduplikasi.'
+                    : (error.message || 'Respons server tidak sesuai. Periksa daftar sebelum mencoba lagi.');
+                displayErrors(error.data, fallback);
             } finally {
                 submitting = false;
                 fieldset.disabled = false;

@@ -8,12 +8,13 @@ from main.models import Project, Experience
 class ProjectForm(ModelForm):
     class Meta:
         model = Project
-        fields = ["title", "description", "tech_stack", "project_url"]
+        fields = ["title", "description", "tech_stack", "project_url", "project_image_url"]
         labels = {
             "title": "Nama Proyek",
             "description": "Deskripsi Proyek",
             "tech_stack": "Teknologi yang Digunakan",
             "project_url": "URL Proyek",
+            "project_image_url": "URL Gambar Proyek",
         }
         widgets = {
             "title": TextInput(attrs={
@@ -31,6 +32,10 @@ class ProjectForm(ModelForm):
             }),
             "project_url": URLInput(attrs={
                 "placeholder": "https://github.com/username/project",
+                "class": "form-control",
+            }),
+            "project_image_url": URLInput(attrs={
+                "placeholder": "https://example.com/project-image.jpg",
                 "class": "form-control",
             }),
         }
@@ -53,6 +58,12 @@ class ProjectForm(ModelForm):
         if not description:
             raise ValidationError("Deskripsi tidak boleh hanya berisi tag HTML.")
         return description
+
+    def clean_project_image_url(self):
+        image_url = self.cleaned_data.get("project_image_url")
+        if image_url and not image_url.lower().startswith(("https://", "http://")):
+            raise ValidationError("URL gambar harus menggunakan HTTP atau HTTPS.")
+        return image_url
 
 
 EXPERIENCE_CATEGORY_LABELS = {
