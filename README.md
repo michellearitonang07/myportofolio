@@ -1,4 +1,4 @@
-# Portfolio Website - Tugas 1, 2, 3, 4 & 5 PBP
+# Portfolio Website - Tugas 1–6 PBP
 
 Nama: Michelle Yuyun Margarethy Aritonang
 
@@ -10,7 +10,7 @@ Kelas: PBP C
 
 Website portofolio pribadi yang dibuat sebagai bagian dari mata kuliah Pemrograman Berbasis Platform. Website ini menampilkan informasi pribadi, profil singkat, pendidikan, pengalaman organisasi/kepanitiaan, skills, serta projects yang pernah dikerjakan.
 
-Pada Tugas 1, website dibuat menggunakan HTML5 dan CSS3 dengan desain responsive. Pada Tugas 2, website dikembangkan menggunakan Django dengan menambahkan bagian Projects yang datanya disimpan di database dan ditampilkan secara dinamis. Pada Tugas 3, website dikembangkan lebih lanjut dengan menambahkan penggunaan ModelForm, fitur pengelolaan data Experience, flash messages, serta penyediaan data dalam format JSON dan XML.
+Pada Tugas 1, website dibuat menggunakan HTML5 dan CSS3 dengan desain responsive. Pada Tugas 2, website dikembangkan menggunakan Django dengan menambahkan bagian Projects yang datanya disimpan di database dan ditampilkan secara dinamis. Pada Tugas 3–5, website memperoleh form, autentikasi, role Editor, star, dan interaksi AJAX. Tutorial 07 membangun REST API untuk Projects, lalu Tugas 6 menerapkan pola DRF yang sama pada Experience tanpa membuat model atau data baru.
 
 ## Teknologi yang Dipakai
 
@@ -18,6 +18,8 @@ Pada Tugas 1, website dibuat menggunakan HTML5 dan CSS3 dengan desain responsive
 - CSS3
 - Python
 - Django
+- Django REST Framework
+- JavaScript dan Fetch API
 - Git & GitHub
 
 ## Fitur Website
@@ -34,6 +36,8 @@ Pada Tugas 1, website dibuat menggunakan HTML5 dan CSS3 dengan desain responsive
 - Flash messages untuk memberikan notifikasi setelah pengelolaan data
 - Penyediaan data Experience dalam format JSON
 - Penyediaan data Projects dalam format JSON dan XML
+- REST API untuk Projects dan Experience dengan pencarian, star, dan pengelolaan sesuai role
+- Experience AJAX untuk membaca, mencari, menambah, mengubah, memberi star, dan menghapus tanpa reload
 - Responsive layout
 - Link menuju GitHub, LinkedIn, dan Email
 - Navigasi antar halaman menggunakan Django URL
@@ -53,7 +57,11 @@ Untuk menjalankan website secara lokal:
 Perintah utama yang digunakan:
 
 ```bash
+python -m venv env
+source env/bin/activate  # macOS/Linux; Windows: env\Scripts\activate
+pip install -r requirements.txt
 python manage.py migrate
+python manage.py check
 python manage.py runserver
 ```
 
@@ -1047,3 +1055,193 @@ Pemeriksaan manual sebelum pengumpulan:
 6. Uji penggunaan keyboard pada modal menggunakan Tab, Shift+Tab, Escape, dan tombol Batal. Setelah modal ditutup, fokus harus kembali ke tombol Tambah Pengalaman.
 
 7. Periksa kembali halaman Projects untuk memastikan fitur dari Tutorial 05 masih berjalan setelah implementasi AJAX pada Experience.
+
+---
+
+## Individual Assignment 6: Django REST Framework pada Experience
+
+Tugas 6 menerapkan pola REST API Tutorial 07 pada model `Experience` yang sudah
+digunakan sejak Tugas 3–5. Implementasi memakai tabel dan data yang sama. Tidak
+ada model Experience atau aplikasi Django kedua.
+
+### Implementasi
+
+- `ExperienceSerializer` mencantumkan field secara eksplisit, memvalidasi teks
+  dengan `strip_tags`, dan menghitung `star_count` serta `is_starred` sebagai
+  field hanya-baca.
+- API memakai `SessionAuthentication`. Permission server membedakan pengunjung,
+  pengguna biasa, anggota grup `Editor`, dan pemilik portofolio (superuser).
+- Halaman Experience mengambil dan mencari data lewat Fetch API. Modal yang sama
+  mendukung create oleh superuser dan edit PATCH oleh Editor maupun superuser;
+  perubahan memperbarui daftar tanpa reload.
+- Star/unstar dan delete memakai endpoint API. Request perubahan data mengirim
+  `X-CSRFToken`; nilai teks pada kartu, error, dan toast dimasukkan melalui DOM
+  `textContent`.
+
+### Endpoint Experience
+
+| Method | Endpoint | Akses | Fungsi |
+|---|---|---|---|
+| GET | `/api/v1/experiences/?title=<query>` | Semua pengunjung | Daftar dan pencarian judul |
+| POST | `/api/v1/experiences/` | Superuser | Membuat Experience (201) |
+| GET | `/api/v1/experiences/<uuid>/` | Semua pengunjung | Detail Experience |
+| PUT | `/api/v1/experiences/<uuid>/` | Editor, superuser | Mengganti seluruh field yang dapat diedit |
+| PATCH | `/api/v1/experiences/<uuid>/` | Editor, superuser | Mengubah sebagian field; dipakai modal edit |
+| DELETE | `/api/v1/experiences/<uuid>/` | Superuser | Menghapus Experience (204) |
+| POST | `/api/v1/experiences/<uuid>/star/` | Pengguna login | Toggle star untuk `request.user` |
+
+Input tidak valid menghasilkan 400, aksi yang tidak diizinkan menghasilkan 403,
+dan objek yang tidak ditemukan menghasilkan 404 setelah permission lolos.
+Field star, kategori tampilan, waktu pencatatan, dan ID tidak dapat ditentukan
+oleh klien. Respons tidak menyertakan email atau password pengguna.
+
+### Endpoint Projects dari Tutorial 07
+
+API Projects tetap memakai model dan data Project yang sudah ada. Semua endpoint
+berada di bawah `/api/v1/` dan memakai `SessionAuthentication`.
+
+| Method | Endpoint | Akses | Fungsi |
+|---|---|---|---|
+| GET | `/api/v1/projects/?title=<query>` | Semua pengunjung | Daftar dan pencarian judul |
+| POST | `/api/v1/projects/` | Superuser | Membuat Project (201) |
+| GET | `/api/v1/projects/<uuid>/` | Semua pengunjung | Detail Project |
+| PUT/PATCH | `/api/v1/projects/<uuid>/` | Superuser | Mengganti seluruh/sebagian field yang dapat diedit |
+| DELETE | `/api/v1/projects/<uuid>/` | Superuser | Menghapus Project (204) |
+| POST | `/api/v1/projects/<uuid>/star/` | Pengguna login | Toggle star untuk `request.user` |
+
+Project memiliki permission terpisah dari Experience: anggota grup `Editor`
+hanya dapat mengedit Experience, sedangkan perubahan Project hanya boleh
+dilakukan superuser. Field `star_count` dan `is_starred` dihitung server dan
+bersifat hanya-baca.
+
+### Struktur kode utama
+
+- `portofolio/settings.py`, `portofolio/urls.py`: konfigurasi Django, static
+  files, environment, dan penghubung halaman/API.
+- `main/models.py`, `main/migrations/`: model Project dan Experience serta
+  riwayat perubahan skema.
+- `main/serializers.py`, `main/permissions.py`, `main/api_views.py`,
+  `main/api_urls.py`: kontrak JSON DRF, izin role, view API, dan route `/api/v1/`.
+- `main/views.py`, `main/urls.py`, `main/forms.py`: halaman server-rendered,
+  endpoint AJAX lama, autentikasi, dan form.
+- `main/templates/`: halaman, komponen, dan modal yang memakai template Django.
+- `main/static/js/`, `main/static/css/`, `main/static/img/`: perilaku browser,
+  tampilan, serta aset lokal.
+- `main/tests.py`, `main/tests_api.py`, `main/test_*browser.py`: tes Django,
+  API, dan Selenium opt-in.
+
+### Matriks role
+
+| Peran | Baca dan cari | Star | Create | Edit | Delete |
+|---|---:|---:|---:|---:|---:|
+| Guest | Ya | Tidak | Tidak | Tidak | Tidak |
+| User biasa | Ya | Ya | Tidak | Tidak | Tidak |
+| Editor (grup `Editor`) | Ya | Ya | Tidak | Ya | Tidak |
+| Pemilik (superuser) | Ya | Ya | Ya | Ya | Ya |
+
+Tombol menyesuaikan role untuk kenyamanan. Permission class dan view lama tetap
+memeriksa hak akses di server.
+
+### Cara menjalankan dan menguji Tugas 6
+
+```bash
+source env/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test main.tests_api --verbosity 2
+python manage.py test main --verbosity 2
+```
+
+Test API memeriksa empat role, perubahan isi database, PUT/PATCH, create/delete,
+validasi dan pembersihan HTML, search, star, field hanya-baca, 404, serta CSRF
+dengan `APIClient(enforce_csrf_checks=True)` dan login session. Tes browser
+Selenium bersifat opt-in; jalankan dengan `RUN_BROWSER_TESTS=1` pada mesin yang
+mempunyai Selenium serta browser Chrome yang kompatibel.
+
+### Tugas 6
+
+1. **REST, JSON, PUT, dan PATCH.** REST adalah gaya arsitektur yang memodelkan
+   data sebagai resource, memberi alamat resource yang konsisten, dan memakai
+   semantik HTTP seperti GET untuk membaca serta POST/PATCH/DELETE untuk
+   perubahan. JSON hanyalah format representasi; API JSON belum tentu memakai
+   resource, method, status, dan kontrak HTTP secara konsisten. Pada proyek ini
+   satu Experience ditunjuk oleh `/api/v1/experiences/<uuid>/`. PUT mengirim
+   seluruh field yang dapat diubah, sedangkan PATCH mengirim perubahan parsial.
+   Modal edit mengirim PATCH untuk memperbarui judul, deskripsi, kategori,
+   thumbnail, dan tanggal selesai tanpa mengganti resource lain.
+
+2. **Serializer DRF.** Serializer mengubah instance `Experience` menjadi data
+   primitif yang dapat dirender sebagai JSON, dan memvalidasi input sebelum
+   membuat atau mengubah model. `ExperienceSerializer` juga memisahkan field
+   input dari field hasil perhitungan seperti `star_count` dan `is_starred`.
+   Dibandingkan merakit dictionary `JsonResponse` secara manual, serializer
+   menyediakan validasi model, penanganan field wajib dan pilihan kategori,
+   dukungan create/update, serta satu kontrak respons yang dapat dipakai oleh
+   semua API view.
+
+3. **Autentikasi dan otorisasi.** Autentikasi memastikan identitas peminta;
+   `SessionAuthentication` menggunakan sesi login Django. Otorisasi menentukan
+   tindakan yang boleh dilakukan identitas tersebut. Permission class di API
+   memberi hak baca kepada semua orang, star kepada akun login, edit kepada
+   grup `Editor` dan superuser, serta create/delete hanya kepada superuser.
+   Menyembunyikan tombol hanya mengubah tampilan dan dapat dilewati dengan
+   mengirim request langsung, sehingga server tetap harus memeriksa setiap aksi.
+
+4. **CSRF dan test session.** Browser mengirim cookie sesi secara otomatis;
+   situs lain yang dibuka pengguna dapat mencoba memanfaatkan cookie tersebut
+   untuk mengirim request perubahan tanpa sepengetahuan pengguna. Token CSRF
+   membuktikan request berasal dari halaman aplikasi yang memiliki token yang
+   benar. Karena itu operasi Experience mengirim `X-CSRFToken`. `force_authenticate`
+   menyetel user langsung pada request test dan melewati alur cookie/session
+   serta pemeriksaan CSRF. Test CSRF proyek menggunakan
+   `APIClient(enforce_csrf_checks=True)`, `.login()`, dan request tanpa token,
+   lalu memeriksa bahwa database tidak berubah.
+
+### Pengungkapan penggunaan AI Tugas 6
+
+Saya menggunakan ChatGPT untuk membantu menyusun prompt, memahami dokumen
+requirement, dan meninjau ruang lingkup pekerjaan. Saya memberikan PDF Tugas 6,
+konteks proyek, serta instruksi agar Experience existing dipertahankan dan
+fitur edit melalui API diperiksa secara khusus.
+
+Codex membantu membaca requirement dan kode repository, memetakan fitur yang
+sudah ada, mengubah integrasi edit Experience ke PATCH API, melengkapi test role
+dan CSRF, memeriksa regresi, serta menyusun dokumentasi. Dalam tugas ini,
+pemilik proyek menentukan Experience sebagai bagian yang dikerjakan dan
+memberikan spesifikasi serta batasan; inspeksi kode, perubahan file, dan
+perintah test yang dicatat di README dilakukan dengan bantuan Codex. README ini
+merangkum strategi prompting dan langkah implementasi sebagai log yang dapat
+dibaca. Tidak ada URL percakapan publik yang diberikan, jadi saya tidak
+mencantumkan tautan chat yang tidak tersedia.
+
+Tes Django memeriksa backend dan kontrak API; suite Selenium yang tercatat di
+atas memeriksa skenario browser tertentu pada Chrome headless. Cakupan tersebut
+bukan jaminan semua browser/ukuran layar dan tidak memeriksa konfigurasi PWS.
+Deployment tetap perlu diverifikasi pada environment PWS.
+
+#### Pemeriksaan Tugas 6
+
+Verifikasi final pada virtualenv proyek (`Django 5.2`, `djangorestframework
+3.18.3`) menggunakan database sementara untuk semua tes:
+
+- `python manage.py check`: lulus; tidak ada isu.
+- `python manage.py makemigrations --check --dry-run`: lulus; tidak ada perubahan
+  model yang belum memiliki migration.
+- `python manage.py test main.tests_api --verbosity 2`: **24 lulus, 0 gagal,
+  0 skip**. Test setup menerapkan seluruh migration sampai `main.0005`.
+- `python manage.py test main --verbosity 2`: **68 lulus, 0 gagal, 19 skip**.
+  Semua skip adalah tes Selenium yang opt-in.
+- `RUN_BROWSER_TESTS=1 python manage.py test main --verbosity 2`: **87 lulus,
+  0 gagal, 0 skip**. Ini menjalankan tes Django dan Chrome headless untuk
+  Projects serta Experience, termasuk edit PATCH Experience tanpa reload.
+
+### Progres Minggu 6
+
+Memeriksa ulang API Projects dari Tutorial 07, menerapkan pola serializer,
+permission, session authentication, CSRF, dan status HTTP yang sama pada model
+Experience, lalu menghubungkan edit Experience melalui PATCH dari halaman.
+Pengerjaan mencakup tes akses empat role, tes CSRF berbasis session, uji browser,
+dan dokumentasi API serta refleksi Tugas 6. Data Experience dan isi portofolio
+yang sudah ada tetap dipakai.
