@@ -121,7 +121,7 @@ class ExperienceAjaxTests(TestCase):
             self.assertEqual(item['fields']['starred_by'], [[self.reader.username], [self.editor.username]])
             self.assertNotIn('star_count', item['fields'])
 
-    def test_page_is_a_shell_and_modal_matches_creation_permissions(self):
+    def test_page_is_a_shell_and_modal_matches_edit_permissions(self):
         for user in [None, self.reader, self.editor, self.owner]:
             self.client.logout()
             if user:
@@ -130,10 +130,12 @@ class ExperienceAjaxTests(TestCase):
             self.assertNotIn('experience_list', response.context)
             self.assertNotContains(response, self.experience.title)
             self.assertContains(response, 'id="experience-grid"')
-            if user == self.owner:
+            can_edit = user in (self.editor, self.owner)
+            if can_edit:
                 self.assertContains(response, 'id="add-experience-modal"')
                 self.assertContains(response, 'action="/experience/add/"')
                 self.assertContains(response, 'id="experience-form"')
+                self.assertContains(response, 'data-detail-url="/api/v1/experiences/')
             else:
                 self.assertNotContains(response, 'id="add-experience-modal"')
                 self.assertNotContains(response, 'id="experience-form"')

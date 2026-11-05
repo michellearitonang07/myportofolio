@@ -142,6 +142,7 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
             self.open_page()
             self.assertEqual(bool(self.browser.find_elements('css selector', '.experience-edit')), role != 'reader')
             self.assertEqual(bool(self.browser.find_elements('css selector', 'button[data-action="delete"]')), role == 'owner')
+            self.assertEqual(bool(self.browser.find_elements('class name', 'experience-add-button')), role == 'owner')
             self.browser.find_element('css selector', '#experience-grid .button-star').click()
             self.wait.until(lambda d: d.find_element('css selector', '#experience-grid .button-star').get_attribute('aria-pressed') == 'true')
             self.search('Kampus')
@@ -149,15 +150,26 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
             self.assertEqual(self.browser.find_element('css selector', '#experience-grid .star-count').text, '1')
             self.browser.find_element('css selector', '#experience-grid .button-star').click()
             self.wait.until(lambda d: d.find_element('css selector', '#experience-grid .star-count').text == '0')
-            if role == 'editor':
+            if role in ['editor', 'owner']:
+                self.browser.execute_script("""
+                    window.pageMarker='same-page'; window.realFetch=fetch; window.writeInfo=[];
+                    window.fetch=async (...args)=>{
+                        const response=await realFetch(...args);
+                        if(args[1]?.method==='PATCH') writeInfo.push({method:args[1].method,status:response.status,csrf:!!args[1].headers['X-CSRFToken']});
+                        return response;
+                    };
+                """)
                 self.browser.find_element('css selector', '.experience-edit').click()
-                title = self.browser.find_element('name', 'title')
+                self.wait.until(lambda d: d.execute_script("return document.getElementById('add-experience-modal').matches(':popover-open')"))
+                title = self.browser.find_element('css selector', '#experience-form [name=title]')
+                self.assertTrue(self.browser.find_element('id', 'add-experience-modal').is_displayed())
                 title.clear()
-                title.send_keys('Relawan Kampus Diperbarui')
-                submit = self.browser.find_element('css selector', '.project-form button[type=submit]')
-                self.browser.execute_script("arguments[0].scrollIntoView({block:'center',behavior:'instant'})", submit)
-                submit.click()
-                self.wait.until(lambda d: 'Diperbarui' in d.find_element('css selector', '#experience-grid h2').text)
+                title.send_keys(f'Relawan Kampus Diperbarui {role}')
+                self.submit_modal()
+                self.wait.until(lambda d: f'Diperbarui {role}' in d.find_element('css selector', '#experience-grid h2').text)
+                self.assertEqual(self.browser.current_url, self.live_server_url + '/experience/')
+                self.assertEqual(self.browser.execute_script('return pageMarker'), 'same-page')
+                self.assertEqual(self.browser.execute_script('return writeInfo'), [{'method': 'PATCH', 'status': 200, 'csrf': True}])
             if role == 'owner':
                 self.browser.find_element('css selector', 'button[data-action="delete"]').click()
                 self.browser.switch_to.alert.dismiss()
@@ -223,8 +235,8 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
         self.wait.until(lambda d: d.find_element('id', 'id_title').get_attribute('aria-invalid') == 'true')
         self.assertTrue(self.browser.find_element('id', 'add-experience-modal').is_displayed())
         self.assertEqual(self.browser.find_element('id', 'id_title').get_attribute('value'), payload)
-        self.assertIn('tag HTML', self.browser.find_element('id', 'id_title_errors').text)
-        self.wait.until(lambda d: 'tag HTML' in d.find_element('id', 'toast-message').text)
+        self.assertIn('Judul pengalaman tidak boleh kosong', self.browser.find_element('id', 'id_title_errors').text)
+        self.wait.until(lambda d: 'Judul pengalaman tidak boleh kosong' in d.find_element('id', 'toast-message').text)
         self.assertEqual(Experience.objects.count(), 1)
         self.assertEqual(self.browser.find_elements('css selector', '#experience-form img'), [])
         self.browser.execute_script("""
@@ -265,7 +277,8 @@ class ExperienceBrowserTests(StaticLiveServerTestCase):
         self.browser.execute_script('window.fetch=realFetch')
         self.browser.delete_cookie('sessionid')
         self.submit_modal()
-        self.wait.until(lambda d: 'akun yang berhak' in d.find_element('id', 'experience-form-errors').text)
+        self.wait.until(lambda d: d.find_element('id', 'experience-form').get_attribute('aria-busy') == 'false')
+        self.assertIn('Sesi login berakhir', self.browser.find_element('id', 'experience-form-errors').text)
         self.assertEqual(Experience.objects.count(), 1)
         self.assert_no_js_errors()
 

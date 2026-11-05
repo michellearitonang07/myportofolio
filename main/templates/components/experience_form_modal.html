@@ -1,17 +1,18 @@
 <div id="add-experience-modal" class="project-form-modal" popover="auto"
-     role="dialog" aria-modal="true" aria-labelledby="add-experience-modal-title">
+     role="dialog" aria-modal="true" aria-labelledby="experience-modal-title">
     <button type="button" class="project-form-modal__backdrop" popovertarget="add-experience-modal"
-            popovertargetaction="hide" aria-label="Tutup form tambah pengalaman" tabindex="-1"></button>
+            popovertargetaction="hide" aria-label="Tutup formulir pengalaman" tabindex="-1"></button>
     <div class="project-form-modal__content">
         <button type="button" class="project-form-modal__close" popovertarget="add-experience-modal"
-                popovertargetaction="hide" aria-label="Tutup form tambah pengalaman">×</button>
-        <h2 id="add-experience-modal-title">Tambah Pengalaman</h2>
+                popovertargetaction="hide" aria-label="Tutup formulir pengalaman">×</button>
+        <h2 id="experience-modal-title">Tambah Pengalaman</h2>
         <form id="experience-form" class="project-form" method="post"
-              action="{% url 'main:create_experience' %}" data-create-url="{% url 'api:experience-list' %}" novalidate>
+              action="{% url 'main:create_experience' %}" data-create-url="{% url 'api:experience-list' %}"
+              data-mode="create" aria-labelledby="experience-modal-title" novalidate>
             {% csrf_token %}
             <div id="experience-form-errors" class="form-error" role="alert" tabindex="-1"></div>
             <fieldset class="experience-fields">
-                <legend class="visually-hidden">Informasi pengalaman baru</legend>
+                <legend class="visually-hidden">Informasi pengalaman</legend>
                 {% for field in form %}
                 <div class="form-group">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>

@@ -16,6 +16,7 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
     def setUpClass(cls):
         super().setUpClass()
         from selenium import webdriver
+        from selenium.common.exceptions import StaleElementReferenceException
         from selenium.webdriver.support.ui import WebDriverWait
         options = webdriver.ChromeOptions()
         options.add_argument('--headless=new')
@@ -26,7 +27,11 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         except Exception:
             super().tearDownClass()
             raise
-        cls.wait = WebDriverWait(cls.browser, 10)
+        cls.wait = WebDriverWait(
+            cls.browser,
+            10,
+            ignored_exceptions=(StaleElementReferenceException,),
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -344,7 +349,7 @@ class ProjectBrowserTests(StaticLiveServerTestCase):
         self.browser.execute_script('window.fetch = window.originalFetch')
         self.browser.delete_cookie('sessionid')
         self.browser.find_element('css selector', '#project-form button[type=submit]').click()
-        self.wait.until(lambda d: 'Only the portfolio owner' in d.find_element('id', 'toast-message').text)
+        self.wait.until(lambda d: d.find_element('id', 'toast-title').text == 'Gagal menambahkan proyek')
         self.assertTrue(self.browser.find_element('id', 'add-project-modal').is_displayed())
         self.assertEqual(Project.objects.count(), 0)
         self.assert_no_js_errors()

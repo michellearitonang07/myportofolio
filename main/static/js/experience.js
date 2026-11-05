@@ -11,6 +11,10 @@
     const dummyUUID = '00000000-0000-0000-0000-000000000000';
     let controller;
     let searchTimer;
+    const experiencesById = new Map();
+    let openEditModal = () => {};
+    let editingExperienceId = null;
+    let modalReturnFocus = null;
 
     function element(tag, className, text) {
         const node = document.createElement(tag);
@@ -26,6 +30,15 @@
 
     function dateText(value) {
         return new Intl.DateTimeFormat('id-ID', {dateStyle: 'medium', timeZone: 'Asia/Jakarta'}).format(new Date(value));
+    }
+
+    function dateTimeLocalValue(value) {
+        if (!value) return '';
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+        }).formatToParts(new Date(value)).map(part => [part.type, part.value]));
+        return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
     }
 
     function buildCard(project) {
@@ -79,8 +92,11 @@
             actions.append(loginLink);
         }
         if (page.dataset.canEdit === 'true') {
-            const edit = element('a', 'btn btn-outline experience-edit', 'Ubah');
-            edit.href = page.dataset.editUrl.replace(dummyUUID, project.id);
+            const edit = element('button', 'btn btn-outline experience-edit', 'Ubah');
+            edit.type = 'button';
+            edit.dataset.action = 'edit';
+            edit.dataset.id = project.id;
+            edit.setAttribute('aria-label', `Ubah ${project.title}`);
             actions.append(edit);
         }
         if (page.dataset.canDelete === 'true') {
@@ -108,7 +124,12 @@
             const data = await response.json();
             if (activeController.signal.aborted || controller !== activeController) return;
             if (!Array.isArray(data)) throw new Error('Respons server bukan daftar pengalaman.');
-            const cards = data.map(buildCard);
+            experiencesById.clear();
+            const cards = data.map(experience => {
+                const card = buildCard(experience);
+                experiencesById.set(experience.id, experience);
+                return card;
+            });
             grid.replaceChildren(...cards);
             document.querySelector('#experience-empty p').textContent = query
                 ? 'Tidak ada pengalaman dengan judul tersebut.' : 'Belum ada pengalaman yang ditambahkan.';
@@ -159,7 +180,11 @@
         if (!response.ok) {
             const messages = Object.values(data || {}).flatMap(value => Array.isArray(value) ? value : [value])
                 .filter(value => typeof value === 'string');
-            const error = new Error(typeof data?.detail === 'string' ? data.detail : messages.join(' ') || `Permintaan gagal (${response.status}).`);
+            const detail = typeof data?.detail === 'string' ? data.detail : null;
+            const message = response.status === 403 && detail === 'Authentication credentials were not provided.'
+                ? 'Sesi login berakhir. Silakan masuk kembali.'
+                : (detail || messages.join(' ') || `Permintaan gagal (${response.status}).`);
+            const error = new Error(message);
             error.data = data;
             throw error;
         }
@@ -171,6 +196,12 @@
         if (!button || button.disabled) return;
         const {action, id} = button.dataset;
         if (!uuidPattern.test(id || '')) return;
+        if (!['edit', 'star', 'delete'].includes(action)) return;
+        if (action === 'edit') {
+            const experience = experiencesById.get(id);
+            if (experience) openEditModal(experience, button);
+            return;
+        }
         if (action === 'delete' && !window.confirm('Apakah kamu yakin ingin menghapus pengalaman ini?')) return;
         button.disabled = true;
         try {
@@ -179,10 +210,12 @@
                 : page.dataset.deleteUrl.replace(dummyUUID, id);
             const updated = await writeExperience(endpoint, action === 'star' ? 'POST' : 'DELETE');
             if (action === 'star') {
+                experiencesById.set(id, updated);
                 const card = buildCard(updated);
                 button.closest('.experience-card').replaceWith(card);
                 showToast('Berhasil', 'Status bintang diperbarui.', 'success');
             } else {
+                experiencesById.delete(id);
                 button.closest('.experience-card').remove();
                 if (!grid.children.length) displayState('empty');
                 showToast('Berhasil', 'Pengalaman berhasil dihapus.', 'success');
@@ -196,12 +229,47 @@
     const form = document.getElementById('experience-form');
     if (modal && form) {
         const opener = document.querySelector('.experience-add-button');
+        const modalTitle = document.getElementById('experience-modal-title');
         const summary = document.getElementById('experience-form-errors');
         const submitButton = form.querySelector('button[type="submit"]');
         const fieldset = form.querySelector('fieldset');
         const fieldNames = ['title', 'description', 'category', 'thumbnail', 'ended_at'];
         const previousInert = new Map();
         let submitting = false;
+
+        function clearErrors() {
+            summary.replaceChildren();
+            form.querySelectorAll('[data-field-errors]').forEach(node => node.replaceChildren());
+            fieldNames.forEach(name => form.elements.namedItem(name).removeAttribute('aria-invalid'));
+        }
+
+        function configureCreateModal() {
+            modalReturnFocus = opener;
+            editingExperienceId = null;
+            form.dataset.mode = 'create';
+            form.reset();
+            modalTitle.textContent = 'Tambah Pengalaman';
+            submitButton.textContent = 'Simpan Pengalaman';
+            clearErrors();
+        }
+
+        if (opener) opener.addEventListener('click', configureCreateModal);
+
+        openEditModal = (experience, button) => {
+            modalReturnFocus = button;
+            editingExperienceId = experience.id;
+            form.dataset.mode = 'edit';
+            form.elements.namedItem('title').value = experience.title;
+            form.elements.namedItem('description').value = experience.description;
+            form.elements.namedItem('category').value = experience.category;
+            form.elements.namedItem('thumbnail').value = experience.thumbnail || '';
+            form.elements.namedItem('ended_at').value = dateTimeLocalValue(experience.ended_at);
+            modalTitle.textContent = 'Ubah Pengalaman';
+            submitButton.textContent = 'Simpan Perubahan';
+            clearErrors();
+            modal.showPopover();
+        };
+
         for (const name of fieldNames) {
             const input = form.elements.namedItem(name);
             const help = document.getElementById(`${input.id}_help`);
@@ -218,7 +286,14 @@
             } else {
                 previousInert.forEach((value, node) => { node.inert = value; });
                 previousInert.clear();
-                opener.focus();
+                if (modalReturnFocus?.isConnected) {
+                    modalReturnFocus.focus();
+                } else if (editingExperienceId) {
+                    [...grid.querySelectorAll('button[data-action="edit"]')]
+                        .find(button => button.dataset.id === editingExperienceId)?.focus();
+                } else {
+                    opener?.focus();
+                }
             }
         });
         modal.addEventListener('keydown', event => {
@@ -236,13 +311,7 @@
             }
         });
 
-        function clearErrors() {
-            summary.replaceChildren();
-            form.querySelectorAll('[data-field-errors]').forEach(node => node.replaceChildren());
-            fieldNames.forEach(name => form.elements.namedItem(name).removeAttribute('aria-invalid'));
-        }
-
-        function displayErrors(errors, fallback) {
+        function displayErrors(errors, fallback, editing) {
             const messages = [];
             if (errors && typeof errors === 'object' && !Array.isArray(errors)) {
                 for (const [name, entries] of Object.entries(errors)) {
@@ -260,7 +329,7 @@
                 }
             }
             summary.textContent = messages.length ? messages.join(' ') : fallback;
-            showToast('Gagal menambahkan pengalaman', summary.textContent, 'error', 6000);
+            showToast(editing ? 'Gagal memperbarui pengalaman' : 'Gagal menambahkan pengalaman', summary.textContent, 'error', 6000);
         }
 
         form.addEventListener('submit', async event => {
@@ -282,14 +351,30 @@
             submitButton.textContent = 'Menyimpan...';
             form.setAttribute('aria-busy', 'true');
             let failed = false;
+            const editing = form.dataset.mode === 'edit' && uuidPattern.test(editingExperienceId || '');
+            const endpoint = editing
+                ? page.dataset.detailUrl.replace(dummyUUID, editingExperienceId)
+                : form.dataset.createUrl;
+            const method = editing ? 'PATCH' : 'POST';
             try {
-                const result = await writeExperience(form.dataset.createUrl, 'POST', body);
+                const result = await writeExperience(endpoint, method, body);
                 if (typeof result?.id === 'string' && uuidPattern.test(result.id)) {
+                    const savedId = result.id;
                     form.reset();
                     modal.hidePopover();
-                    showToast('Berhasil', 'Pengalaman berhasil ditambahkan. Daftar diperbarui sesuai pencarian aktif.', 'success');
+                    showToast(
+                        'Berhasil',
+                        editing ? 'Pengalaman berhasil diperbarui.' : 'Pengalaman berhasil ditambahkan.',
+                        'success',
+                    );
                     clearTimeout(searchTimer);
                     await fetchExperiences();
+                    if (editing) {
+                        [...grid.querySelectorAll('button[data-action="edit"]')]
+                            .find(button => button.dataset.id === savedId)?.focus();
+                    }
+                    editingExperienceId = null;
+                    modalReturnFocus = null;
                 } else {
                     failed = true;
                     displayErrors(null, 'Respons server tidak sesuai. Periksa daftar sebelum mencoba menyimpan kembali.');
@@ -299,12 +384,12 @@
                 const fallback = error instanceof TypeError
                     ? 'Koneksi terputus. Isian tetap tersimpan di form. Periksa daftar sebelum mencoba lagi agar data tidak terduplikasi.'
                     : (error.message || 'Respons server tidak sesuai. Periksa daftar sebelum mencoba lagi.');
-                displayErrors(error.data, fallback);
+                displayErrors(error.data, fallback, editing);
             } finally {
                 submitting = false;
                 fieldset.disabled = false;
                 submitButton.disabled = false;
-                submitButton.textContent = 'Simpan Pengalaman';
+                submitButton.textContent = form.dataset.mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Pengalaman';
                 form.setAttribute('aria-busy', 'false');
                 if (failed && modal.matches(':popover-open')) {
                     const invalid = form.querySelector('[aria-invalid="true"]');
